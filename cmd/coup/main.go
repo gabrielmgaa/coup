@@ -1,41 +1,56 @@
 package main
 
 import (
+	crand "crypto/rand"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"os"
 
+	"github.com/gabrielmgaa/coup/internal/engine"
+	"github.com/gabrielmgaa/coup/internal/server"
 	"github.com/gabrielmgaa/coup/web"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		imprimirUso()
+		printUsage()
 	}
 	switch os.Args[1] {
 	case "serve":
-		servir(os.Args[2:])
+		serve(os.Args[2:])
 	default:
-		imprimirUso()
+		printUsage()
 	}
 }
 
-func imprimirUso() {
-	fmt.Fprintln(os.Stderr, "uso: coup serve [-porta 8080]")
+func printUsage() {
+	fmt.Fprintln(os.Stderr, "usage: coup serve [-port 8080]")
 	os.Exit(2)
 }
 
-func servir(argumentos []string) {
+func serve(args []string) {
 	flags := flag.NewFlagSet("serve", flag.ExitOnError)
-	porta := flags.Int("porta", 8080, "porta HTTP")
-	flags.Parse(argumentos)
+	port := flags.Int("port", 8080, "HTTP port")
+	coins := flags.Int("starting-coins", engine.RulebookCoins,
+		"coins each player starts with; 0 follows the rulebook (2, or 1 in a two-player game)")
+	flags.Parse(args)
 
-	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServerFS(web.Dist()))
+	address := fmt.Sprintf(":%d", *port)
+	log.Printf("coup listening on http://localhost%s", address)
+	log.Fatal(http.ListenAndServe(address, server.New(web.Dist(), rand.New(seed()), *coins)))
+}
 
-	endereco := fmt.Sprintf(":%d", *porta)
-	log.Printf("coup ouvindo em http://localhost%s", endereco)
-	log.Fatal(http.ListenAndServe(endereco, mux))
+func seed() *rand.PCG {
+	var bytes [16]byte
+	if _, err := crand.Read(bytes[:]); err != nil {
+		log.Fatalf("no entropy available to shuffle the deck: %v", err)
+	}
+	return rand.NewPCG(
+		binary.NativeEndian.Uint64(bytes[:8]),
+		binary.NativeEndian.Uint64(bytes[8:]),
+	)
 }
