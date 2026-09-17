@@ -29,6 +29,14 @@ go build -o coup ./cmd/coup
 
 O binário resultante contém o site. Não tem pasta pra subir, CDN nem nginx.
 
+### Os dois `.gitkeep` que parecem lixo e não são
+
+`go:embed` é erro de compilação quando o padrão não casa arquivo nenhum, então `web/dist/`
+nunca pode ficar vazia. Quem segura isso são dois arquivos vazios: **`web/dist/.gitkeep`** está
+no git e faz um clone recém-baixado compilar antes de qualquer build; **`web/public/.gitkeep`** é
+copiado pra dentro do `dist` por todo `pnpm build`, repondo o primeiro, que o Vite apaga ao
+esvaziar a pasta. Apagar qualquer um dos dois quebra `go build ./...`.
+
 ## Créditos
 
 Coup é de **Rikki Tahta**, publicado por **La Mame Games** e **Indie Boards & Cards**; no

@@ -1,122 +1,188 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useRef, useState, type FormEvent } from 'react'
+import {
+  actionLabel,
+  cardLabel,
+  roomAddress,
+  type AvailableAction,
+  type FromClient,
+  type FromServer,
+  type GameEvent,
+  type PlayerView,
+  type View,
+} from './coup'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [name, setName] = useState('')
+  const [connected, setConnected] = useState(false)
+  const [state, setState] = useState<View | null>(null)
+  const [log, setLog] = useState<GameEvent[]>([])
+  const [refusal, setRefusal] = useState<string | null>(null)
+  const socket = useRef<WebSocket | null>(null)
+
+  function join(submitted: FormEvent) {
+    submitted.preventDefault()
+    const opened = new WebSocket(roomAddress())
+    opened.onopen = () => {
+      setConnected(true)
+      opened.send(JSON.stringify({ type: 'join', name } satisfies FromClient))
+    }
+    opened.onmessage = (incoming) => {
+      const message: FromServer = JSON.parse(incoming.data)
+      if (message.type === 'error') {
+        setRefusal(message.message)
+        return
+      }
+      setRefusal(null)
+      setState(message.state)
+      setLog((previous) => [...previous, ...message.events])
+    }
+    opened.onclose = () => setConnected(false)
+    socket.current = opened
+  }
+
+  function send(message: FromClient) {
+    socket.current?.send(JSON.stringify(message))
+  }
+
+  if (!connected && !state) {
+    return (
+      <main className="join-screen">
+        <h1>Coup</h1>
+        <form onSubmit={join}>
+          <input
+            value={name}
+            onChange={(typed) => setName(typed.target.value)}
+            placeholder="seu nome"
+            autoFocus
+          />
+          <button disabled={name.trim() === ''}>entrar na mesa</button>
+        </form>
+        {refusal && <p className="refusal">{refusal}</p>}
+      </main>
+    )
+  }
+
+  if (!state) {
+    return (
+      <main className="join-screen">
+        <h1>Coup</h1>
+        <p className="waiting">esperando alguém entrar na mesa…</p>
+        {refusal && <p className="refusal">{refusal}</p>}
+      </main>
+    )
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+    <main className="table">
+      <header>
+        <h1>Coup</h1>
+        <span className="deck">{state.deck_remaining} cartas no baralho</span>
+      </header>
+
+      {state.winner && <p className="winner">{state.winner} venceu a partida</p>}
+
+      <section className="seats">
+        {state.players.map((player) => (
+          <Seat key={player.name} player={player} state={state} />
+        ))}
       </section>
 
-      <div className="ticks"></div>
+      {refusal && <p className="refusal">{refusal}</p>}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <YourTurn state={state} send={send} />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <ol className="log">
+        {log.map((event) => (
+          <li key={event.n}>{event.text}</li>
+        ))}
+      </ol>
+    </main>
   )
 }
 
-export default App
+function Seat({ player, state }: { player: PlayerView; state: View }) {
+  const classes = ['seat']
+  if (player.name === state.turn_of) classes.push('on-turn')
+  if (player.eliminated) classes.push('eliminated')
+
+  return (
+    <article className={classes.join(' ')}>
+      <h2>
+        {player.name}
+        {player.name === state.you && <small> (você)</small>}
+      </h2>
+      <p className="coins">{player.coins} moedas</p>
+      <p className="cards">
+        {player.my_cards?.map((card, position) => (
+          <span className="mine" key={`mine-${position}`}>
+            {cardLabel(card)}
+          </span>
+        ))}
+        {!player.my_cards &&
+          Array.from({ length: player.hidden }, (_, position) => (
+            <span className="hidden" key={`hidden-${position}`}>
+              ?
+            </span>
+          ))}
+        {player.revealed.map((card, position) => (
+          <span className="revealed" key={`revealed-${position}`}>
+            {cardLabel(card)}
+          </span>
+        ))}
+      </p>
+    </article>
+  )
+}
+
+function YourTurn({ state, send }: { state: View; send: (message: FromClient) => void }) {
+  const me = state.players.find((player) => player.name === state.you)
+
+  if (state.losing === state.you) {
+    return (
+      <section className="actions">
+        <p>você levou um golpe — qual carta revela?</p>
+        {me?.my_cards?.map((card, position) => (
+          <button key={`${card}-${position}`} onClick={() => send({ type: 'lose_influence', card })}>
+            revelar {cardLabel(card)}
+          </button>
+        ))}
+      </section>
+    )
+  }
+
+  if (state.losing) {
+    return <p className="waiting">{state.losing} está escolhendo qual carta perder…</p>
+  }
+
+  if (state.phase === 'finished') return null
+
+  if (state.turn_of !== state.you) {
+    return <p className="waiting">é a vez de {state.turn_of}…</p>
+  }
+
+  return (
+    <section className="actions">{state.your_actions.flatMap((action) => buttonsFor(action, send))}</section>
+  )
+}
+
+function buttonsFor(action: AvailableAction, send: (message: FromClient) => void) {
+  const price = action.cost ? ` (${action.cost})` : ''
+  const label = actionLabel(action.name)
+  if (!action.targets) {
+    return [
+      <button key={action.name} onClick={() => send({ type: 'play', action: action.name })}>
+        {label}
+        {price}
+      </button>,
+    ]
+  }
+  return action.targets.map((target) => (
+    <button
+      key={`${action.name}-${target}`}
+      onClick={() => send({ type: 'play', action: action.name, target })}
+    >
+      {label} em {target}
+      {price}
+    </button>
+  ))
+}
