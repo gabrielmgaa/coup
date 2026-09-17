@@ -1,32 +1,44 @@
-# React + TypeScript + Vite
+# `web` — a mesa no navegador
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Vite + React + TypeScript. Desenha a mesa a partir do snapshot que chega pelo WebSocket e manda de
+volta o que foi clicado. **Não tem regra de Coup aqui dentro, e não pode ganhar nenhuma.**
 
-Currently, two official plugins are available:
+## Arquivos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| | |
+|---|---|
+| `src/coup.ts` | os tipos do fio (`View`, `PlayerView`, `GameEvent`, `FromServer`…) e a tradução pra tela: `actionLabel`, `cardLabel` |
+| `src/App.tsx` | o componente único: formulário de entrada, mesa, mão, log, botões |
+| `src/index.css` | o estilo |
+| `embed.go` | pacote Go de uma função: `Dist()` devolve o `dist/` embutido no binário |
 
-## React Compiler
+## O cliente não sabe as regras
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Os botões saem de `state.your_actions`, que o servidor manda já filtrado — com os alvos válidos
+dentro. O React não decide que Extorsão não mira quem tem 0 moedas, nem que com 10 moedas só
+sobra o Golpe. Ele desenha a lista que recebeu.
 
-## Expanding the Oxlint configuration
+O motivo é economia: cada regra escrita aqui seria escrita **de novo** em Go no motor e mais uma
+vez na TUI da 0.3 — e as três divergiriam.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Os nomes cruzam o fio em inglês (`income`, `coup`, `duke`) e viram pt-BR na borda, em
+`actionLabel` e `cardLabel`. Texto de evento já chega pronto do servidor, em pt-BR.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Dois processos em dev, um em release
+
+```sh
+pnpm dev      # :5173, hot reload. O proxy de /ws pro :8080 está em vite.config.ts
+pnpm build    # roda tsc -b e gera dist/ — precisa vir ANTES do go build
+pnpm lint     # oxlint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Os dois `.gitkeep` que parecem lixo
+
+`go:embed` é **erro de compilação** quando o padrão não casa arquivo nenhum, então `dist/` nunca
+pode ficar vazia. `dist/.gitkeep` está no git e faz um clone novo compilar antes de qualquer
+build; `public/.gitkeep` é copiado pra dentro do `dist` por todo `pnpm build`, repondo o
+primeiro, que o Vite apaga ao esvaziar a pasta. Apagar qualquer um dos dois quebra
+`go build ./...`.
+
+A diretiva `//go:embed` não aceita `..`, e é só por isso que `embed.go` mora aqui e não em
+`internal/server` ou `cmd/coup`.

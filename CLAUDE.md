@@ -135,6 +135,11 @@ The decisions in that README were each stress-tested before being written down: 
 reopen one without a new fact.** Two of them deliberately contradict the brief and are marked
 as such.
 
+**Every package and top-level folder carries its own `README.md`** — `cmd/coup`,
+`internal/engine`, `internal/protocol`, `internal/server`, `web`. That is where a fact about a
+folder goes, since comments do not exist here: what lives inside, which invariant must not
+break, what does not belong. Changed a package's shape? Its README changes in the same commit.
+
 `01-regras.md` is the rulebook distilled: 11 traps a from-memory engine gets silently wrong,
 the full 8-branch decision tree of one action, 3 deliberate divergences, and one invariant the
 rulebook never states ("one reaction per player per action" — without it, assassination never
