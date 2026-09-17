@@ -101,7 +101,7 @@ com 2. Abre a **janela 42**: Pedro recebe `[contestar, bloquear_condessa, passar
 Vanessa recebem `[contestar, passar]`.
 
 ```
-A — ninguém reage (ou estoura o prazo)
+A — ninguém reage (ou estoura o deadline)
     └─ assassinato resolve. Pedro escolhe carta pra revelar.
        Marina: 2 moedas.                                         1 janela
 
@@ -175,8 +175,8 @@ O custo de errar a leitura cai de *morre* pra *perde uma carta*.
 ### 2. Alvo com 0 moedas não pode ser extorquido
 
 O livreto cobre "se ele só tiver uma moeda, pegue apenas uma" e cala sobre zero. Aqui,
-Extorquir contra alvo com 0 moedas é **jogada ilegal**: o motor recusa e a lista de alvos na
-foto já vem sem ele.
+Extorquir contra alvo com 0 moedas é **jogada ilegal**: o motor recusa e a lista de alvos no
+snapshot já vem sem ele.
 
 Consequência: se **todos** os outros estiverem com 0 moedas, Extorquir some das opções daquele
 turno. Não trava nada — Renda, Ajuda Externa, Taxas, Assassinar, Trocar e Golpe continuam, e
@@ -185,7 +185,7 @@ passar continua proibido.
 ### 3. Tesouro infinito
 
 A caixa tem 24 moedas mais 6 de ouro (valendo 5 cada) = 54 de valor. Com 6 jogadores saem 12
-no setup. Nunca seca. O campo `tesouro` não existe no estado nem na foto.
+no setup. Nunca seca. O campo `treasury` não existe no estado nem no snapshot.
 
 ## Fora do escopo do core
 

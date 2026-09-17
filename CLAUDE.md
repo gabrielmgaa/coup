@@ -81,13 +81,13 @@ where `MyCards` is populated for **one** entry. `internal/protocol` wraps that i
 and never reshapes it.
 
 `View` lives in the engine, not in `protocol`, because hiding cards is a rule of Coup rather
-than a transport detail. **`docs/plan/major/03-protocolo.md` says otherwise and is wrong** —
-following it produces an import cycle.
+than a transport detail. Putting it in `protocol` produces an import cycle, which is why
+`docs/plan/major/03-protocolo.md` now says so explicitly — it used to say the opposite.
 
 ### Snapshot, not deltas
 
 Every server message carries the full state plus the events that caused it, together. ~700
-bytes for a six-player table; a whole game is ~84 KB. Reconnection (0.8) is "send the photo
+bytes for a six-player table; a whole game is ~84 KB. Reconnection (0.8) is "send the snapshot
 again" — no replay, no client-side reassembly that would have to be written twice, in Go and
 in TypeScript.
 
@@ -140,9 +140,11 @@ the full 8-branch decision tree of one action, 3 deliberate divergences, and one
 rulebook never states ("one reaction per player per action" — without it, assassination never
 kills anyone). Do not re-read the PDF or re-derive the rules.
 
-**The plan documents are pt-BR prose written before the code and have drifted.** They still say
-`Visao`, `vez_de`, `Renda`, `Sala`, `internal/servidor` — names that no longer exist. Trust the
-code for names, the docs for intent.
+**The plan documents are pt-BR prose, and their identifiers were reconciled with the code after
+0.1 shipped.** Names that exist today are the code's; names for phases 0.2–0.9 are projections
+of the same language rule and will move when the code lands. Each doc marks which phase a name
+belongs to. Trust the code for names, the docs for intent — and when a phase closes, fix the
+doc in the same breath rather than letting the gap reopen.
 
 Before writing any test: list the test points in the six-field format the user's global rules
 require (Situação / Afirma / Antes→depois / Vermelho / Onde roda / Cobre) **and wait for

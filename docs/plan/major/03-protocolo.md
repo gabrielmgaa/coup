@@ -1,12 +1,16 @@
 # Protocolo
 
-WebSocket em `/ws`. JSON, `encoding/json`, tagged union pelo campo `tipo`. Uma conexão por
+WebSocket em `/ws`. JSON, `encoding/json`, tagged union pelo campo `type`. Uma conexão por
 jogador, aberta uma vez e mantida aberta.
+
+**Nome vai em inglês no fio, texto vai em pt-BR.** Chave de JSON, `type`, código de erro e nome
+de ação são identificadores; `text` e `message` são o que o humano lê. O que a fase 0.1 já
+fala está marcado nas tabelas abaixo; o resto é o desenho das fases seguintes.
 
 ## O princípio que rege tudo: o cliente não sabe as regras
 
-O servidor manda **quais ações são legais agora** (`suas_acoes`) e **quais respostas cabem
-nesta janela** (`suas_opcoes`). O React e o Bubble Tea são renderizadores puros: desenham
+O servidor manda **quais ações são legais agora** (`your_actions`) e **quais respostas cabem
+nesta janela** (`your_options`). O React e o Bubble Tea são renderizadores puros: desenham
 botões a partir de uma lista e mandam de volta o que foi clicado.
 
 Sem isso, "Extorquir não pode mirar quem tem 0 moedas" precisaria ser escrito três vezes — em
@@ -17,172 +21,187 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 
 ## Cliente → servidor
 
-| `tipo` | Campos | Quando |
-|---|---|---|
-| `criar_sala` | `nome`, `regras?` | Sem sala ainda. Responde `bem_vindo` com o código gerado |
-| `entrar` | `sala`, `nome` | Entrar numa sala existente |
-| `reconectar` | `token` | Retomar a sessão de antes |
-| `pronto` | `pronto: bool` | Só no lobby |
-| `comecar` | — | Só o host, só com todos prontos e ≥2 jogadores |
-| `jogar` | `acao`, `alvo?` | Só no seu turno |
-| `responder` | `janela`, `resposta`, `personagem?` | `resposta` ∈ `contestar` / `bloquear` / `passar` |
-| `perder_influencia` | `carta` | Quando a fase pede que você escolha |
-| `devolver_cartas` | `cartas: [duas]` | Após Trocar (Embaixador) |
-| `sair` | — | Sai da sala |
+| `type` | Campos | Quando | Fase |
+|---|---|---|---|
+| `join` | `room`, `name` | Entrar numa sala existente | **0.1** (sem `room` até a 0.2) |
+| `play` | `action`, `target?` | Só no seu turno | **0.1** |
+| `lose_influence` | `card` | Quando a fase pede que você escolha | **0.1** |
+| `leave` | — | Sai da sala | **0.1** |
+| `create_room` | `name`, `options?` | Sem sala ainda. Responde `welcome` com o código gerado | 0.2 |
+| `ready` | `ready: bool` | Só no lobby | 0.2 |
+| `start` | — | Só o host, só com todos prontos e ≥2 jogadores | 0.2 |
+| `respond` | `window`, `answer`, `character?` | `answer` ∈ `challenge` / `block` / `pass` | 0.4 |
+| `return_cards` | `cards: [duas]` | Após Trocar (Embaixador) | 0.7 |
+| `reconnect` | `token` | Retomar a sessão de antes | 0.8 |
 
-`personagem` só acompanha `bloquear`, porque Extorsão aceita dois bloqueadores diferentes
+`character` só acompanha `block`, porque Extorsão aceita dois bloqueadores diferentes
 (Capitão ou Embaixador) e o motor precisa saber qual foi alegado pra resolver a contestação.
 
 ## Servidor → cliente
 
-| `tipo` | Campos |
-|---|---|
-| `bem_vindo` | `token`, `voce`, `sala` |
-| `atualizacao` | `estado`, `eventos` |
-| `erro` | `codigo`, `mensagem`, `recebido`, `esperado` |
+| `type` | Campos | Fase |
+|---|---|---|
+| `update` | `state`, `events` | **0.1** |
+| `error` | `code`, `message`, `received`, `expected` | **0.1** |
+| `welcome` | `token`, `you`, `room` | 0.2 |
 
-`estado` e `eventos` viajam **na mesma mensagem**, sempre. Nunca há estado sem a narração do
+`state` e `events` viajam **na mesma mensagem**, sempre. Nunca há estado sem a narração do
 que causou ele, nem narração sem o estado resultante.
 
 ## O snapshot
 
-Uma foto completa, recortada pro destinatário. ~700 bytes numa mesa de 6; uma partida inteira
+Um snapshot completo, recortado pro destinatário. ~700 bytes numa mesa de 6; uma partida inteira
 gasta ~84 KB. Mandar tudo a cada ação é irrelevante.
 
 ```json
 {
-  "tipo": "atualizacao",
-  "estado": {
-    "sala": "K7QM",
-    "fase": "aguardando_resposta",
-    "voce": "pedro",
+  "type": "update",
+  "state": {
+    "room": "K7QM",
+    "phase": "awaiting_response",
+    "you": "pedro",
     "host": "marina",
-    "regras": { "reacoes_independentes": false },
-    "vez_de": "marina",
-    "baralho_restante": 7,
-    "pausada": null,
-    "vencedor": null,
-    "jogadores": [
-      { "nome": "marina",  "moedas": 2, "ocultas": 2, "reveladas": [],
-        "conectado": true,  "pronto": true, "eliminado": false },
-      { "nome": "pedro",   "moedas": 3, "ocultas": 2, "reveladas": [],
-        "conectado": true,  "pronto": true, "eliminado": false,
-        "minhas_cartas": ["condessa", "capitao"] },
-      { "nome": "sergio",  "moedas": 2, "ocultas": 1, "reveladas": ["assassino"],
-        "conectado": true,  "pronto": true, "eliminado": false },
-      { "nome": "vanessa", "moedas": 0, "ocultas": 2, "reveladas": [],
-        "conectado": false, "pronto": true, "eliminado": false }
+    "options": { "independent_reactions": false },
+    "turn_of": "marina",
+    "deck_remaining": 7,
+    "paused": null,
+    "winner": null,
+    "players": [
+      { "name": "marina",  "coins": 2, "hidden": 2, "revealed": [],
+        "connected": true,  "ready": true, "eliminated": false },
+      { "name": "pedro",   "coins": 3, "hidden": 2, "revealed": [],
+        "connected": true,  "ready": true, "eliminated": false,
+        "my_cards": ["contessa", "captain"] },
+      { "name": "sergio",  "coins": 2, "hidden": 1, "revealed": ["assassin"],
+        "connected": true,  "ready": true, "eliminated": false },
+      { "name": "vanessa", "coins": 0, "hidden": 2, "revealed": [],
+        "connected": false, "ready": true, "eliminated": false }
     ],
-    "janela": {
+    "window": {
       "id": 42,
-      "acao": { "nome": "assassinar", "de": "marina", "alvo": "pedro", "alega": "assassino" },
-      "bloqueio": null,
-      "suas_opcoes": ["contestar", "bloquear_com_condessa", "passar"],
-      "ja_responderam": ["vanessa"],
-      "fecha_em_ms": 25000
+      "action": { "name": "assassinate", "by": "marina", "target": "pedro", "claims": "assassin" },
+      "block": null,
+      "your_options": ["challenge", "block_with_contessa", "pass"],
+      "already_responded": ["vanessa"],
+      "closes_in_ms": 25000
     },
-    "suas_acoes": null
+    "your_actions": null
   },
-  "eventos": [
-    { "n": 47, "tipo": "acao_declarada",
-      "texto": "Marina pagou 3 e alegou Assassino contra Pedro.",
-      "dados": { "de": "marina", "acao": "assassinar", "alvo": "pedro", "custo": 3 } }
+  "events": [
+    { "n": 47, "type": "action_declared",
+      "text": "marina pagou 3 e alegou Assassino contra pedro.",
+      "data": { "by": "marina", "action": "assassinate", "target": "pedro", "cost": 3 } }
   ]
 }
 ```
 
-### A mesma foto, mandada pro Sérgio
+**O snapshot de hoje é menor.** A 0.1 tem `phase`, `you`, `turn_of`, `losing`, `winner`,
+`deck_remaining`, `players` (com `name`, `coins`, `hidden`, `revealed`, `eliminated`,
+`my_cards`) e `your_actions` — e `event` sem `data`, só `n`, `type` e `text`. `room`, `host`,
+`options`, `paused`, `window`, `connected` e `ready` chegam com as fases que os pedem.
+
+`losing` é o nome de quem tem de escolher qual carta revelar; vem preenchido só na fase
+`awaiting_influence_loss`.
+
+### O mesmo snapshot, mandado pro Sérgio
 
 Muda em três lugares, e é aí que a informação oculta acontece:
 
 ```json
-  "voce": "sergio",
-    { "nome": "pedro",  "moedas": 3, "ocultas": 2, "reveladas": [] },
-    { "nome": "sergio", "moedas": 2, "ocultas": 1, "reveladas": ["assassino"],
-      "minhas_cartas": ["duque"] },
-  "janela": { "suas_opcoes": ["contestar", "passar"] }
+  "you": "sergio",
+    { "name": "pedro",  "coins": 3, "hidden": 2, "revealed": [] },
+    { "name": "sergio", "coins": 2, "hidden": 1, "revealed": ["assassin"],
+      "my_cards": ["duke"] },
+  "window": { "your_options": ["challenge", "pass"] }
 ```
 
-O Sérgio vê que o Pedro tem 2 cartas ocultas, **nunca quais são** — `minhas_cartas` só existe
-na entrada dele mesmo. E ele não recebe `bloquear_com_condessa` porque bloquear Assassinato é
+O Sérgio vê que o Pedro tem 2 cartas ocultas, **nunca quais são** — `my_cards` só existe
+na entrada dele mesmo. E ele não recebe `block_with_contessa` porque bloquear Assassinato é
 só do alvo.
 
 ### Quando é a sua vez
 
-`janela` vem `null` e `suas_acoes` vem preenchido, já filtrado pelo que é legal:
+`window` vem `null` e `your_actions` vem preenchido, já filtrado pelo que é legal:
 
 ```json
-"fase": "aguardando_acao",
-"vez_de": "pedro",
-"suas_acoes": [
-  { "nome": "renda" },
-  { "nome": "ajuda_externa" },
-  { "nome": "taxas" },
-  { "nome": "trocar" },
-  { "nome": "extorquir",  "alvos": ["marina", "sergio"] },
-  { "nome": "assassinar", "alvos": ["marina", "sergio", "vanessa"], "custo": 3 }
+"phase": "awaiting_action",
+"turn_of": "pedro",
+"your_actions": [
+  { "name": "income" },
+  { "name": "foreign_aid" },
+  { "name": "tax" },
+  { "name": "exchange" },
+  { "name": "steal",       "targets": ["marina", "sergio"] },
+  { "name": "assassinate", "targets": ["marina", "sergio", "vanessa"], "cost": 3 }
 ]
 ```
 
-Vanessa não aparece nos alvos de `extorquir` porque está com 0 moedas. `golpe` não aparece
-porque Pedro tem menos de 7. Se Pedro tivesse 10+, a lista teria **só** `golpe`.
+Vanessa não aparece nos alvos de `steal` porque está com 0 moedas. `coup` não aparece
+porque Pedro tem menos de 7. Se Pedro tivesse 10+, a lista teria **só** `coup` — e isso já é
+assim desde a 0.1.
 
 ### Sala pausada
 
 ```json
-"pausada": { "esperando": "pedro", "retoma_em_ms": 30000 }
+"paused": { "waiting_for": "pedro", "resumes_in_ms": 30000 }
 ```
 
 Presente só quando a partida trava por queda de quem tem decisão pendente. Enquanto está
-presente, `janela.fecha_em_ms` não corre.
+presente, `window.closes_in_ms` não corre.
 
 ## Eventos
 
 ```json
-{ "n": 47, "tipo": "acao_declarada", "texto": "...", "dados": { ... } }
+{ "n": 47, "type": "action_declared", "text": "...", "data": { ... } }
 ```
 
 - `n` é sequencial por sala e nunca reseta durante a partida. É o log que o projeto quer desde
-  o começo, mesmo hoje descartado no fim.
-- `texto` é o que a CLI imprime no log e a web mostra no feed. Vem pronto do servidor, em
+  o começo, mesmo hoje descartado no fim. **Um evento suprimido abre buraco na numeração**, e
+  foi assim que um bug apareceu na 0.1: quem perdia a última carta não gerava `influence_lost`
+  nem `player_eliminated`, e o log pulava de 1 pra 4.
+- `text` é o que a CLI imprime no log e a web mostra no feed. Vem pronto do servidor, em
   pt-BR, porque montar a frase no cliente significaria montá-la **duas vezes**, em Go e em TS.
-- `dados` é o que a interface usa pra animar (qual carta virou, quem perdeu, quanto de dinheiro
-  andou).
+- `data` é o que a interface usa pra animar (qual carta virou, quem perdeu, quanto de dinheiro
+  andou). **Ainda não existe:** o `Event` de hoje tem `n`, `type` e `text`, e nasce com a
+  primeira animação que precisar dele.
 
-Quando i18n entrar (fase futura), o cliente monta a string a partir de `tipo` + `dados` e
-`texto` vira fallback. Até lá, `texto` é a fonte.
+Quando i18n entrar (fase futura), o cliente monta a string a partir de `type` + `data` e
+`text` vira fallback. Até lá, `text` é a fonte.
 
-**Tipos de evento:** `partida_iniciada`, `acao_declarada`, `janela_aberta`, `passou`,
-`contestou`, `contestacao_ganha`, `contestacao_perdida`, `bloqueou`, `bloqueio_valeu`,
-`bloqueio_falhou`, `influencia_perdida`, `carta_trocada`, `moedas_devolvidas`, `acao_resolvida`,
-`jogador_eliminado`, `turno_passou`, `partida_terminada`, `jogador_caiu`, `jogador_voltou`,
-`sala_pausada`, `sala_retomada`, `auto_resolvido`.
+**Tipos de evento.** Existem hoje: `action_declared`, `influence_lost`, `player_eliminated`,
+`turn_passed`, `game_over`. Previstos: `game_started`, `window_opened`, `passed`, `challenged`,
+`challenge_won`, `challenge_lost`, `blocked`, `block_held`, `block_failed`, `card_swapped`,
+`coins_refunded`, `action_resolved`, `player_dropped`, `player_returned`, `room_paused`,
+`room_resumed`, `auto_resolved`.
 
 ## Erros
 
 Formato fixo, sempre com o valor recebido e o esperado:
 
 ```json
-{ "tipo": "erro", "codigo": "janela_fechada",
-  "mensagem": "a janela 42 já fechou",
-  "recebido": 42, "esperado": 43 }
+{ "type": "error", "code": "window_closed",
+  "message": "a janela 42 já fechou",
+  "received": 42, "expected": 43 }
 ```
 
-| `codigo` | Significa |
-|---|---|
-| `sala_nao_encontrada` | código de sala não existe ou expirou |
-| `sala_cheia` | já tem 6 |
-| `nome_em_uso` | duplicado nesta sala |
-| `nome_invalido` | fora de 2–16 caracteres |
-| `nao_e_sua_vez` | jogou fora do turno |
-| `acao_ilegal` | ação não está em `suas_acoes` |
-| `alvo_invalido` | alvo não está na lista daquela ação |
-| `moedas_insuficientes` | custo maior que o saldo |
-| `golpe_obrigatorio` | tem 10+ moedas e tentou outra coisa |
-| `janela_fechada` | respondeu a uma janela que já resolveu |
-| `ja_respondeu` | segunda resposta na mesma janela |
-| `nao_e_host` | tentou `comecar` sem ser host |
-| `token_invalido` | reconexão com token desconhecido |
+`message` é pt-BR porque é o que aparece na tela; `code`, `received` e `expected` são para quem
+está depurando.
+
+| `code` | Significa | Fase |
+|---|---|---|
+| `illegal_action` | ação não está em `your_actions` | **0.1** |
+| `invalid_target` | alvo não está na lista daquela ação | **0.1** |
+| `not_your_turn` | jogou fora do turno | **0.1** |
+| `insufficient_coins` | custo maior que o saldo | **0.1** |
+| `coup_required` | tem 10+ moedas e tentou outra coisa | **0.1** |
+| `name_taken` | duplicado nesta sala | **0.1** |
+| `room_full` | já tem 6 (hoje: a partida já começou) | **0.1** |
+| `invalid_name` | fora de 2–16 caracteres | 0.2 |
+| `not_host` | tentou `start` sem ser host | 0.2 |
+| `room_not_found` | código de sala não existe ou expirou | 0.2 |
+| `window_closed` | respondeu a uma janela que já resolveu | 0.4 |
+| `already_responded` | segunda resposta na mesma janela | 0.4 |
+| `invalid_token` | reconexão com token desconhecido | 0.8 |
 
 Um erro é sempre resposta a **uma** mensagem daquele cliente, e nunca é difundido.
 
@@ -191,47 +210,54 @@ Um erro é sempre resposta a **uma** mensagem daquele cliente, e nunca é difund
 São **dois tipos Go diferentes**, e não é convenção — é o compilador que impede o vazamento.
 
 ```go
-// internal/engine/jogo.go — a VERDADE. Nunca sai do servidor.
-type Jogo struct {
-	jogadores []jogador   // minúsculo = não exportado
-	baralho   []Carta     // minúsculo = não exportado
-	fase      Fase
-	janela    *Janela
+// internal/engine/game.go — a VERDADE. Nunca sai do servidor.
+type Game struct {
+	players []player    // minúsculo = não exportado
+	deck    []Character // minúsculo = não exportado
+	phase   Phase
+	winner  string
 }
 
-// internal/protocolo/visao.go — o que VAI pro cliente.
-type Visao struct {
-	Voce      string         `json:"voce"`
-	VezDe     string         `json:"vez_de"`
-	Jogadores []JogadorVisto `json:"jogadores"`
-	Janela    *JanelaVista   `json:"janela,omitempty"`
+// internal/engine/view.go — o que VAI pro cliente.
+type View struct {
+	You     string       `json:"you"`
+	TurnOf  string       `json:"turn_of"`
+	Players []PlayerView `json:"players"`
+	Window  *WindowView  `json:"window,omitempty"`
 }
 ```
 
+**`View` mora em `internal/engine`, não em `internal/protocol`** — e a versão anterior deste
+documento dizia o contrário, errado. `ViewFor` precisa ler os campos privados de `Game`, então
+morando em `protocol` ele importaria `engine`, e `engine` importaria `protocol` de volta:
+ciclo de import, que em Go nem compila. O motivo de fundo é melhor que o mecânico — esconder
+carta é **regra do Coup**, não detalhe de transporte. `internal/protocol` só embrulha
+`engine.View` no envelope e não remodela nada.
+
 Maiúscula/minúscula **é** o sistema de visibilidade do Go: campo com inicial minúscula é
 privado ao pacote. E `encoding/json` **só serializa campos exportados**. Então
-`json.Marshal(jogo)` devolve literalmente `{}` — é *impossível* vazar a mão de alguém por
+`json.Marshal(game)` devolve literalmente `{}` — é *impossível* vazar a mão de alguém por
 acidente, mesmo escrevendo o código errado.
 
-Aquela `` `json:"vez_de"` `` é uma **struct tag**: metadado colado no campo dizendo ao
+Aquela `` `json:"turn_of"` `` é uma **struct tag**: metadado colado no campo dizendo ao
 `encoding/json` como nomear ele no JSON.
 
 A projeção é uma função pura:
 
 ```go
-func Ver(j *Jogo, jogador string) protocolo.Visao
+func ViewFor(g *Game, name string) View
 ```
 
 ## Reconexão
 
-1. No primeiro `entrar` ou `criar_sala`, o servidor responde `bem_vindo` com um token opaco de
-   128 bits. Web guarda em `localStorage`, CLI em `~/.config/coup/sessao.json`.
-2. Caiu a conexão → o cliente reabre o WebSocket e manda `reconectar {token}`.
-3. O servidor associa o token ao assento, marca `conectado: true` e responde `atualizacao` com
-   a foto atual. Acabou.
+1. No primeiro `join` ou `create_room`, o servidor responde `welcome` com um token opaco de
+   128 bits. Web guarda em `localStorage`, CLI em `~/.config/coup/session.json`.
+2. Caiu a conexão → o cliente reabre o WebSocket e manda `reconnect {token}`.
+3. O servidor associa o token ao assento, marca `connected: true` e responde `update` com
+   o snapshot atual. Acabou.
 
 Não existe replay, não existe "me manda do evento 47 em diante", não existe histórico guardado
-por sala pra isso. A foto **é** o estado.
+por sala pra isso. O snapshot **é** o estado.
 
 O token vale enquanto a sala viver (TTL de 30 min sem nenhuma conexão). Reconexão depois disso
-devolve `sala_nao_encontrada`.
+devolve `room_not_found`.
