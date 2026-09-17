@@ -1,0 +1,161 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+Open source implementation of the board game **Coup**, playable in the browser and (from
+phase 0.3) in the terminal. Authoritative Go server, pure rules engine, typed event protocol.
+One binary with the site inside it.
+
+## Language split — the rule that trips everyone
+
+**Code is English. Player-facing strings are pt-BR. Comments do not exist.**
+
+- Identifiers, file names, packages, test names, JSON keys, refusal codes, CLI flags: English
+  (`turn_of`, `my_cards`, `not_your_turn`, `income`, `coup`, `duke`, `contessa`).
+- Anything a human reads on screen: pt-BR. Event text (`"isabely pagou 7 e deu um Golpe de
+  Estado em marina."`), refusal messages (`"não é a vez de quem jogou"`), button labels,
+  the join form.
+- Card and action names cross the wire in English and become pt-BR at the edge:
+  `Character.LabelPtBR()` in the engine's narration, `actionLabel()`/`cardLabel()` in
+  `web/src/coup.ts` for the UI.
+- **No comments anywhere**, including doc comments. If a fact needs explaining, it goes in a
+  name, or in prose in `README.md` (see the `.gitkeep` invariant below).
+
+The user's global rules (`~/.claude/CLAUDE.md`) also apply: declarative names everywhere, early
+returns, explicit types, no `any`, refusals carry received *and* expected values.
+
+## Commands
+
+```sh
+# dev — TWO processes. Vite proxies /ws to the Go server (web/vite.config.ts).
+cd web && pnpm install && pnpm dev    # :5173, hot reload
+go run ./cmd/coup serve               # :8080
+
+# release — ONE process. pnpm build MUST come first; go build embeds web/dist.
+cd web && pnpm build
+go build -o coup ./cmd/coup && ./coup serve
+
+# verify, one at a time, never in parallel
+go test -race -count=1 ./...
+go vet ./... && gofmt -l .
+cd web && pnpm build && pnpm lint     # build runs tsc -b; lint is oxlint
+
+# a single test, or one group
+go test ./internal/engine -run TestCoupChargesSevenOnDeclaration -v
+go test ./internal/engine -run 'Coins|Coin' -v
+```
+
+`serve` flags: `-port` (8080) and `-starting-coins`. `-starting-coins 0` follows the rulebook
+(2 coins, or 1 in a two-player game) and is the default; **`-starting-coins 14` is how you
+actually test a full game by hand** — with rulebook coins and only Income available, reaching
+the second Coup takes ~29 turns of clicking.
+
+## Architecture
+
+### The actor: one owner goroutine per room, zero mutexes
+
+`internal/server/room.go` is the whole concurrency design. A `Room` owns its `*engine.Game`;
+nothing else can reach it. Every input — a click, a disconnect, and (from 0.8) a deadline
+firing — arrives as a `command` on `Room.inbox`, and `run()` pulls one at a time. The race
+"someone answers at the instant the clock expires" does not get resolved, it **cannot exist**.
+
+Two consequences you must preserve:
+
+- **The owner goroutine never writes to the network.** `send()` drops the message into a
+  per-connection `outbox` (capacity 16) with `select`/`default`; a full queue means a dead
+  client, so it gets dropped. There is no other place to send from, which is the point — a
+  mutex design would need "no network write while holding the lock" repeated in every new
+  function, and `localhost` never fails that way in tests.
+- **A room has 2 goroutines per player plus its own**: a reader (socket → inbox) and a writer
+  (outbox → socket). Blocking reads are normal Go; the runtime parks them.
+
+Phase 0.1 has exactly **one room, no code** (`newRoom` is called once in `New`). The
+`map[code]*Room` registry and `create_room` arrive in 0.2.
+
+### Hidden information is enforced by the compiler
+
+`engine.Game` has only lowercase fields. `encoding/json` serializes exported fields only, so
+`json.Marshal(game)` returns `{}` — leaking a hand by accident is impossible, even if the code
+is wrong. What leaves the server is `engine.ViewFor(game, name)`: a per-recipient snapshot
+where `MyCards` is populated for **one** entry. `internal/protocol` wraps that in an envelope
+and never reshapes it.
+
+`View` lives in the engine, not in `protocol`, because hiding cards is a rule of Coup rather
+than a transport detail. **`docs/plan/major/03-protocolo.md` says otherwise and is wrong** —
+following it produces an import cycle.
+
+### Snapshot, not deltas
+
+Every server message carries the full state plus the events that caused it, together. ~700
+bytes for a six-player table; a whole game is ~84 KB. Reconnection (0.8) is "send the photo
+again" — no replay, no client-side reassembly that would have to be written twice, in Go and
+in TypeScript.
+
+### The client knows no rules
+
+The server sends `your_actions` (what is legal right now, targets already filtered) and, from
+0.4, `your_options` for the open window. React and the future Bubble Tea client are pure
+renderers: draw buttons from a list, send back what was clicked. `web/src/App.tsx` has no game
+rule in it, and must not gain one.
+
+### The engine has no clock
+
+`Apply` is pure given a `*rand.Rand`. Deadlines belong to the server: from 0.8, a
+`time.AfterFunc` publishes a `Timeout` command into the same inbox, carrying the window ID —
+a stale timeout is recognized by ID and thrown away. This is what lets the engine suite run
+with no fake clock, no `Sleep`, and no flakes.
+
+RNG is injected, not mocked: tests use `rand.New(rand.NewPCG(1, 2))`, production seeds from
+`crypto/rand`. For readable hands, tests use the package-internal `newGameWithDeck`, so
+"marina holds Duke and Contessa" is visible in the test rather than hidden behind a seed.
+
+### Rules live in a table
+
+`internal/engine/rules.go` holds one row per action (`Cost`, `NeedsTarget`, `Effect`, and from
+0.5 `BlockedBy`/`Claims`). Two facts are **derived, never stored**: challengeable = "claims a
+character", and who may block = "has a target → only the target; no target → anyone". The
+money asymmetry of Coup (a successful challenge refunds the cost, a successful block does not)
+must stay in that one place.
+
+### The load-bearing empty files
+
+`go:embed` is a **compile error** when its pattern matches nothing, so `web/dist/` can never be
+empty. Two empty files guarantee that: `web/dist/.gitkeep` is committed so a fresh clone builds
+before anyone runs `pnpm build`, and `web/public/.gitkeep` is copied into `dist` by every
+`pnpm build`, replacing the first one, which Vite deletes when it empties the folder. Deleting
+either breaks `go build ./...`. Also: the `//go:embed` directive cannot use `..`, which is why
+it lives in `web/embed.go` rather than in `server` or `cmd`.
+
+## Working method in this repo
+
+`docs/plan/major/` is the source of truth for scope and sequencing — read `README.md` there
+first, then `05-fases.md` for the current phase. Phases 0.1 (done) through 0.9 each have a
+verifiable "pronto quando"; the core closes at 0.9 and nothing outside it gets built early.
+The decisions in that README were each stress-tested before being written down: **do not
+reopen one without a new fact.** Two of them deliberately contradict the brief and are marked
+as such.
+
+`01-regras.md` is the rulebook distilled: 11 traps a from-memory engine gets silently wrong,
+the full 8-branch decision tree of one action, 3 deliberate divergences, and one invariant the
+rulebook never states ("one reaction per player per action" — without it, assassination never
+kills anyone). Do not re-read the PDF or re-derive the rules.
+
+**The plan documents are pt-BR prose written before the code and have drifted.** They still say
+`Visao`, `vez_de`, `Renda`, `Sala`, `internal/servidor` — names that no longer exist. Trust the
+code for names, the docs for intent.
+
+Before writing any test: list the test points in the six-field format the user's global rules
+require (Situação / Afirma / Antes→depois / Vermelho / Onde roda / Cobre) **and wait for
+confirmation**. After writing them, run `/prove` — it reverts one production fix at a time and
+shows which points fall, so a decorative test cannot reach a commit. A fix that drops no test
+is a finding, not a pass.
+
+Skills that fit this repo: `block` (runs a phase end to end), `tdd`, `prove`, `clean-code-guard`
+after non-trivial production code, `grilling` only for a genuinely new decision. `ponytail` is
+active by hook — the core must not inflate.
+
+## Legal
+
+Game rules are not copyrightable, so a clean implementation is legitimate. **Box art never
+enters this repository.** The README credits Rikki Tahta, La Mame Games, Indie Boards & Cards,
+and Mandala Jogos. Code is MIT.
