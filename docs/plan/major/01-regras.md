@@ -96,43 +96,43 @@ Regras que um motor escrito "de cabeça" erra em silêncio.
 
 ## A árvore completa de uma ação
 
-Marina tem 5 moedas. Declara **Assassinar** contra Pedro, alegando Assassino. Paga 3 → fica
-com 2. Abre a **janela 42**: Pedro recebe `[contestar, bloquear_condessa, passar]`; Sérgio e
-Vanessa recebem `[contestar, passar]`.
+tester2 tem 5 moedas. Declara **Assassinar** contra tester3, alegando Assassino. Paga 3 → fica
+com 2. Abre a **janela 42**: tester3 recebe `[contestar, bloquear_condessa, passar]`; tester5 e
+tester4 recebem `[contestar, passar]`.
 
 ```
 A — ninguém reage (ou estoura o deadline)
-    └─ assassinato resolve. Pedro escolhe carta pra revelar.
-       Marina: 2 moedas.                                         1 janela
+    └─ assassinato resolve. tester3 escolhe carta pra revelar.
+       tester2: 2 moedas.                                         1 janela
 
-B — Pedro bloqueia com Condessa (foi o primeiro)
-    │  janela 42 fecha; o Assassino da Marina JÁ NÃO PODE ser contestado
-    └─ janela 43 abre sobre a Condessa do Pedro
+B — tester3 bloqueia com Condessa (foi o primeiro)
+    │  janela 42 fecha; o Assassino da tester2 JÁ NÃO PODE ser contestado
+    └─ janela 43 abre sobre a Condessa do tester3
        ├─ B1 ninguém contesta → bloqueio vale, assassinato falha.
-       │                        As 3 moedas NÃO voltam. Marina: 2.      2 janelas
-       ├─ B2 Marina contesta, Pedro TINHA Condessa → Marina perde influência.
-       │     Pedro devolve a Condessa, embaralha, puxa outra.
-       │     Assassinato falha. Marina: 2.                              2 janelas
-       └─ B3 Marina contesta, Pedro BLEFOU → Pedro perde influência (contestação),
-             bloqueio falha, assassinato resolve → Pedro perde OUTRA.
+       │                        As 3 moedas NÃO voltam. tester2: 2.      2 janelas
+       ├─ B2 tester2 contesta, tester3 TINHA Condessa → tester2 perde influência.
+       │     tester3 devolve a Condessa, embaralha, puxa outra.
+       │     Assassinato falha. tester2: 2.                              2 janelas
+       └─ B3 tester2 contesta, tester3 BLEFOU → tester3 perde influência (contestação),
+             bloqueio falha, assassinato resolve → tester3 perde OUTRA.
              Perigo duplo. Se tinha 2 cartas, está fora.                2 janelas
 
-C — Sérgio contesta primeiro
-    ├─ C1 Marina TINHA Assassino → Sérgio perde influência.
-    │     Marina devolve o Assassino, embaralha, puxa outra.
-    │     A ação sobreviveu, mas o Pedro nunca reagiu
-    │     └─ REABRE janela 44, só pro Pedro, só [bloquear_condessa, passar]
+C — tester5 contesta primeiro
+    ├─ C1 tester2 TINHA Assassino → tester5 perde influência.
+    │     tester2 devolve o Assassino, embaralha, puxa outra.
+    │     A ação sobreviveu, mas o tester3 nunca reagiu
+    │     └─ REABRE janela 44, só pro tester3, só [bloquear_condessa, passar]
     │        └─ se ele bloquear, abre a 45 sobre a Condessa dele…     até 4 janelas
-    └─ C2 Marina BLEFOU → Marina perde influência, ação falha inteira.
-          As 3 moedas VOLTAM. Marina: 5.                                1 janela
+    └─ C2 tester2 BLEFOU → tester2 perde influência, ação falha inteira.
+          As 3 moedas VOLTAM. tester2: 5.                                1 janela
 
-D — Pedro contesta primeiro
-    ├─ D1 Marina TINHA → Pedro perde influência, assassinato resolve,
-    │     Pedro perde OUTRA. Perigo duplo — o caso que o livreto
-    │     descreve nominalmente. Pedro NÃO reabre bloqueio: gastou a
+D — tester3 contesta primeiro
+    ├─ D1 tester2 TINHA → tester3 perde influência, assassinato resolve,
+    │     tester3 perde OUTRA. Perigo duplo — o caso que o livreto
+    │     descreve nominalmente. tester3 NÃO reabre bloqueio: gastou a
     │     reação dele contestando.                                      1 janela
-    └─ D2 Marina BLEFOU → Marina perde influência, ação falha,
-          3 moedas voltam. Marina: 5.                                   1 janela
+    └─ D2 tester2 BLEFOU → tester2 perde influência, ação falha,
+          3 moedas voltam. tester2: 5.                                   1 janela
 ```
 
 Repare onde o dinheiro diverge: **C2/D2 devolvem as 3 moedas** (contestação derrubou a ação);
@@ -141,11 +141,11 @@ dinheiro. É a armadilha nº 3, e a tabela de regras do motor concentra ela num 
 
 ## A invariante que o livreto não escreve
 
-Compare **C1** e **D1**: nos dois a Marina provou o Assassino, mas em C1 o bloqueio reabre pro
-Pedro e em D1 não.
+Compare **C1** e **D1**: nos dois a tester2 provou o Assassino, mas em C1 o bloqueio reabre pro
+tester3 e em D1 não.
 
 **Cada jogador tem uma reação por ação declarada: contestar OU bloquear, nunca as duas.** Em
-D1 o Pedro gastou a dele. Em C1 não gastou nada.
+D1 o tester3 gastou a dele. Em C1 não gastou nada.
 
 O livreto sustenta o lado D1 nominalmente, na nota *Perigo duplo do Assassino*:
 
@@ -161,14 +161,14 @@ Cada uma é desvio consciente, não bug. Quem clonar o repositório precisa ver 
 
 ### 1. `reacoes_independentes` — opção da sala, **desligada por padrão**
 
-Ligada, o Pedro pode contestar, perder uma influência, **e ainda bloquear com Condessa**. O
+Ligada, o tester3 pode contestar, perder uma influência, **e ainda bloquear com Condessa**. O
 desfecho que o livreto descreve na nota do Perigo Duplo deixa de existir naquele caminho.
 
-| Pedro tem Condessa | Padrão (livreto) | `reacoes_independentes` |
+| tester3 tem Condessa | Padrão (livreto) | `reacoes_independentes` |
 |---|---|---|
 | Bloqueia direto | perde 0 cartas | perde 0 cartas |
-| Contesta e Marina blefou | Marina perde 1, Pedro 0 | igual |
-| Contesta e Marina tinha | perde 1 **e morre** | perde 1, bloqueia, **sobrevive com 1** |
+| Contesta e tester2 blefou | tester2 perde 1, tester3 0 | igual |
+| Contesta e tester2 tinha | perde 1 **e morre** | perde 1, bloqueia, **sobrevive com 1** |
 
 O custo de errar a leitura cai de *morre* pra *perde uma carta*.
 

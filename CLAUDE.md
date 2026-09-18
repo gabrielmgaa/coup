@@ -12,8 +12,8 @@ One binary with the site inside it.
 
 - Identifiers, file names, packages, test names, JSON keys, refusal codes, CLI flags: English
   (`turn_of`, `my_cards`, `not_your_turn`, `income`, `coup`, `duke`, `contessa`).
-- Anything a human reads on screen: pt-BR. Event text (`"isabely pagou 7 e deu um Golpe de
-  Estado em marina."`), refusal messages (`"não é a vez de quem jogou"`), button labels,
+- Anything a human reads on screen: pt-BR. Event text (`"tester1 pagou 7 e deu um Golpe de
+  Estado em tester2."`), refusal messages (`"não é a vez de quem jogou"`), button labels,
   the join form.
 - Card and action names cross the wire in English and become pt-BR at the edge:
   `Character.LabelPtBR()` in the engine's narration, `actionLabel()`/`cardLabel()` in
@@ -107,7 +107,7 @@ with no fake clock, no `Sleep`, and no flakes.
 
 RNG is injected, not mocked: tests use `rand.New(rand.NewPCG(1, 2))`, production seeds from
 `crypto/rand`. For readable hands, tests use the package-internal `newGameWithDeck`, so
-"marina holds Duke and Contessa" is visible in the test rather than hidden behind a seed.
+"tester2 holds Duke and Contessa" is visible in the test rather than hidden behind a seed.
 
 ### Rules live in a table
 

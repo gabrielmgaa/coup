@@ -16,7 +16,7 @@ processo `coup serve`
 ├── goroutine principal ─ net/http escutando :8080
 │     ├── GET /              → index.html (de dentro do binário)
 │     ├── GET /assets/*      → JS e CSS (de dentro do binário)
-│     └── GET /ws?room=K7QM  → vira WebSocket
+│     └── GET /ws               → vira WebSocket; a 1ª mensagem diz a sala
 │
 ├── registry ─ map[code]*Room, com mutex (só pra criar/achar sala)
 │
@@ -33,8 +33,13 @@ processo `coup serve`
 
 Mesa de 4 = **9 goroutines**. Mesa de 6 = 13. Isso é nada: cada goroutine começa com 2 KB.
 
-O `registry` é o único lugar do servidor com mutex, e a seção crítica dele é uma busca em map.
-Ele nunca toca em estado de partida.
+O `registry` é o único lugar do servidor com mutex, e a seção crítica dele é uma busca em map
+mais o sorteio do código. Ele nunca toca em estado de partida.
+
+**O código da sala viaja na mensagem, não no endereço.** `create_room` abre uma sala e recebe o
+código de volta; `join` manda o código. Assim o endereço do WebSocket é sempre `/ws` e o mesmo
+caminho de entrada serve para os dois casos — o desenho alternativo, `/ws?room=K7QM`, obrigaria
+um segundo caminho só para pedir um código antes de ter sala.
 
 ## O que é uma goroutine
 
@@ -90,7 +95,7 @@ esperando** o próximo valor chegar, e só termina quando o channel é fechado.
 ## Por que isso resolve a corrida sozinho
 
 O cenário que mata implementações ingênuas: a janela fecha em 25 s; no segundo **24,998** o
-Sérgio clica em contestar; no segundo **25,000** o clock estoura. Duas coisas querem mexer
+tester5 clica em contestar; no segundo **25,000** o clock estoura. Duas coisas querem mexer
 no jogo ao mesmo tempo.
 
 Go garante que um channel entrega **um valor por vez, na ordem em que chegaram**. Então a
@@ -178,7 +183,7 @@ timer := time.AfterFunc(windowDeadline, func() {
 
 O timeout não é um caminho paralelo — é **mais um pedido na queue**, igual a um clique.
 
-**Por isso o `ID` da janela é obrigatório.** Se o Sérgio contestou aos 24,998 s, a janela 42
+**Por isso o `ID` da janela é obrigatório.** Se o tester5 contestou aos 24,998 s, a janela 42
 já fechou e a 43 abriu. Aos 25,000 s o timer velho dispara, o motor vê `Window: 42` contra a
 corrente 43, e devolve o refusal `window_closed`. Jogado fora, sem drama, sem uma linha de trava.
 
@@ -200,18 +205,18 @@ real — devolver 2 s pra quem acabou de reconectar não protege ninguém.
 
 ## O trace de uma ação, ponta a ponta
 
-Marina (5 moedas) assassina Pedro. Sérgio contesta no último instante.
+tester2 (5 moedas) assassina tester3. tester5 contesta no último instante.
 
 | tempo | o que acontece |
 |---|---|
-| `0.000` | Navegador da Marina envia `{"type":"play","action":"assassinate","target":"pedro"}` |
-| `0.001` | Goroutine **leitora** da Marina decodifica e faz `room.inbox <- command{...}` |
-| `0.001` | **Actor** tira da queue. `game.Apply(...)`: Marina tem 5 ≥ 3 → cobra 3, guarda a ação pendente, abre `Window{ID: 42}`, emite `action_declared` |
+| `0.000` | Navegador da tester2 envia `{"type":"play","action":"assassinate","target":"tester3"}` |
+| `0.001` | Goroutine **leitora** da tester2 decodifica e faz `room.inbox <- command{...}` |
+| `0.001` | **Actor** tira da queue. `game.Apply(...)`: tester2 tem 5 ≥ 3 → cobra 3, guarda a ação pendente, abre `Window{ID: 42}`, emite `action_declared` |
 | `0.001` | Actor agenda `time.AfterFunc(25s, …)` publicando `Timeout{Window: 42}` no próprio inbox |
 | `0.002` | Actor chama `ViewFor(game, name)` 4 vezes e larga nos 4 outbox. 4 goroutines **escritoras** mandam pela rede |
 | `0.002`→`24.99` | **Zero tráfego.** Os 4 clientes animam o countdown localmente a partir do `closes_in_ms` que veio no snapshot |
-| `24.998` | Sérgio contesta → `room.inbox <- command{Respond, Window: 42}` |
-| `24.999` | Actor aplica. Marina **tinha** o Assassino: devolve a carta, embaralha, puxa outra; Sérgio perdeu → fase vira `awaiting_influence_loss` com `losing: "sergio"`, abre `Window{ID: 43}` |
+| `24.998` | tester5 contesta → `room.inbox <- command{Respond, Window: 42}` |
+| `24.999` | Actor aplica. tester2 **tinha** o Assassino: devolve a carta, embaralha, puxa outra; tester5 perdeu → fase vira `awaiting_influence_loss` com `losing: "tester5"`, abre `Window{ID: 43}` |
 | `25.000` | O `AfterFunc` dispara e publica `Timeout{Window: 42}`. Actor tira da queue, motor vê que a corrente é a 43 → `window_closed`. Ignorado. |
 
 Nessa trilha inteira não se escreveu uma linha de sincronização. Nem `Lock`, nem `Unlock`, nem

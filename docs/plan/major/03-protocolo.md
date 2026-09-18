@@ -23,13 +23,13 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 
 | `type` | Campos | Quando | Fase |
 |---|---|---|---|
-| `join` | `room`, `name` | Entrar numa sala existente | **0.1** (sem `room` até a 0.2) |
+| `join` | `room`, `name` | Entrar numa sala existente | **0.2** |
 | `play` | `action`, `target?` | Só no seu turno | **0.1** |
 | `lose_influence` | `card` | Quando a fase pede que você escolha | **0.1** |
 | `leave` | — | Sai da sala | **0.1** |
-| `create_room` | `name`, `options?` | Sem sala ainda. Responde `welcome` com o código gerado | 0.2 |
-| `ready` | `ready: bool` | Só no lobby | 0.2 |
-| `start` | — | Só o host, só com todos prontos e ≥2 jogadores | 0.2 |
+| `create_room` | `name`, `options?` | Sem sala ainda. O código volta no primeiro `lobby` | **0.2** (sem `options` até a 0.9) |
+| `ready` | `ready: bool` | Só no lobby | **0.2** |
+| `start` | — | Só o host, só com todos prontos e ≥2 jogadores | **0.2** |
 | `respond` | `window`, `answer`, `character?` | `answer` ∈ `challenge` / `block` / `pass` | 0.4 |
 | `return_cards` | `cards: [duas]` | Após Trocar (Embaixador) | 0.7 |
 | `reconnect` | `token` | Retomar a sessão de antes | 0.8 |
@@ -43,7 +43,14 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 |---|---|---|
 | `update` | `state`, `events` | **0.1** |
 | `error` | `code`, `message`, `received`, `expected` | **0.1** |
-| `welcome` | `token`, `you`, `room` | 0.2 |
+| `lobby` | `state` com `room`, `you`, `host` e `players` de `{name, ready}` | **0.2** |
+| `welcome` | `token` | 0.8, junto da reconexão |
+
+**`lobby` e `update` são mensagens distintas.** Enquanto a partida não começou, a sala manda
+`lobby`; depois do `start`, manda `update` e nunca mais `lobby`. O cliente troca de tela pela
+mudança de tipo, e não precisa adivinhar pela forma do `state`. O `welcome` que este documento
+previa para a 0.2 não existe: o código da sala chega no campo `room` do primeiro `lobby`, e o
+token só faz sentido quando houver reconexão.
 
 `state` e `events` viajam **na mesma mensagem**, sempre. Nunca há estado sem a narração do
 que causou ele, nem narração sem o estado resultante.
@@ -59,38 +66,38 @@ gasta ~84 KB. Mandar tudo a cada ação é irrelevante.
   "state": {
     "room": "K7QM",
     "phase": "awaiting_response",
-    "you": "pedro",
-    "host": "marina",
+    "you": "tester3",
+    "host": "tester2",
     "options": { "independent_reactions": false },
-    "turn_of": "marina",
+    "turn_of": "tester2",
     "deck_remaining": 7,
     "paused": null,
     "winner": null,
     "players": [
-      { "name": "marina",  "coins": 2, "hidden": 2, "revealed": [],
+      { "name": "tester2",  "coins": 2, "hidden": 2, "revealed": [],
         "connected": true,  "ready": true, "eliminated": false },
-      { "name": "pedro",   "coins": 3, "hidden": 2, "revealed": [],
+      { "name": "tester3",   "coins": 3, "hidden": 2, "revealed": [],
         "connected": true,  "ready": true, "eliminated": false,
         "my_cards": ["contessa", "captain"] },
-      { "name": "sergio",  "coins": 2, "hidden": 1, "revealed": ["assassin"],
+      { "name": "tester5",  "coins": 2, "hidden": 1, "revealed": ["assassin"],
         "connected": true,  "ready": true, "eliminated": false },
-      { "name": "vanessa", "coins": 0, "hidden": 2, "revealed": [],
+      { "name": "tester4", "coins": 0, "hidden": 2, "revealed": [],
         "connected": false, "ready": true, "eliminated": false }
     ],
     "window": {
       "id": 42,
-      "action": { "name": "assassinate", "by": "marina", "target": "pedro", "claims": "assassin" },
+      "action": { "name": "assassinate", "by": "tester2", "target": "tester3", "claims": "assassin" },
       "block": null,
       "your_options": ["challenge", "block_with_contessa", "pass"],
-      "already_responded": ["vanessa"],
+      "already_responded": ["tester4"],
       "closes_in_ms": 25000
     },
     "your_actions": null
   },
   "events": [
     { "n": 47, "type": "action_declared",
-      "text": "marina pagou 3 e alegou Assassino contra pedro.",
-      "data": { "by": "marina", "action": "assassinate", "target": "pedro", "cost": 3 } }
+      "text": "tester2 pagou 3 e alegou Assassino contra tester3.",
+      "data": { "by": "tester2", "action": "assassinate", "target": "tester3", "cost": 3 } }
   ]
 }
 ```
@@ -103,19 +110,19 @@ gasta ~84 KB. Mandar tudo a cada ação é irrelevante.
 `losing` é o nome de quem tem de escolher qual carta revelar; vem preenchido só na fase
 `awaiting_influence_loss`.
 
-### O mesmo snapshot, mandado pro Sérgio
+### O mesmo snapshot, mandado pro tester5
 
 Muda em três lugares, e é aí que a informação oculta acontece:
 
 ```json
-  "you": "sergio",
-    { "name": "pedro",  "coins": 3, "hidden": 2, "revealed": [] },
-    { "name": "sergio", "coins": 2, "hidden": 1, "revealed": ["assassin"],
+  "you": "tester5",
+    { "name": "tester3",  "coins": 3, "hidden": 2, "revealed": [] },
+    { "name": "tester5", "coins": 2, "hidden": 1, "revealed": ["assassin"],
       "my_cards": ["duke"] },
   "window": { "your_options": ["challenge", "pass"] }
 ```
 
-O Sérgio vê que o Pedro tem 2 cartas ocultas, **nunca quais são** — `my_cards` só existe
+O tester5 vê que o tester3 tem 2 cartas ocultas, **nunca quais são** — `my_cards` só existe
 na entrada dele mesmo. E ele não recebe `block_with_contessa` porque bloquear Assassinato é
 só do alvo.
 
@@ -125,25 +132,25 @@ só do alvo.
 
 ```json
 "phase": "awaiting_action",
-"turn_of": "pedro",
+"turn_of": "tester3",
 "your_actions": [
   { "name": "income" },
   { "name": "foreign_aid" },
   { "name": "tax" },
   { "name": "exchange" },
-  { "name": "steal",       "targets": ["marina", "sergio"] },
-  { "name": "assassinate", "targets": ["marina", "sergio", "vanessa"], "cost": 3 }
+  { "name": "steal",       "targets": ["tester2", "tester5"] },
+  { "name": "assassinate", "targets": ["tester2", "tester5", "tester4"], "cost": 3 }
 ]
 ```
 
-Vanessa não aparece nos alvos de `steal` porque está com 0 moedas. `coup` não aparece
-porque Pedro tem menos de 7. Se Pedro tivesse 10+, a lista teria **só** `coup` — e isso já é
+tester4 não aparece nos alvos de `steal` porque está com 0 moedas. `coup` não aparece
+porque tester3 tem menos de 7. Se tester3 tivesse 10+, a lista teria **só** `coup` — e isso já é
 assim desde a 0.1.
 
 ### Sala pausada
 
 ```json
-"paused": { "waiting_for": "pedro", "resumes_in_ms": 30000 }
+"paused": { "waiting_for": "tester3", "resumes_in_ms": 30000 }
 ```
 
 Presente só quando a partida trava por queda de quem tem decisão pendente. Enquanto está
@@ -195,10 +202,14 @@ está depurando.
 | `insufficient_coins` | custo maior que o saldo | **0.1** |
 | `coup_required` | tem 10+ moedas e tentou outra coisa | **0.1** |
 | `name_taken` | duplicado nesta sala | **0.1** |
-| `room_full` | já tem 6 (hoje: a partida já começou) | **0.1** |
-| `invalid_name` | fora de 2–16 caracteres | 0.2 |
-| `not_host` | tentou `start` sem ser host | 0.2 |
-| `room_not_found` | código de sala não existe ou expirou | 0.2 |
+| `room_full` | já tem 6 no lobby | **0.2** |
+| `invalid_name` | fora de 2–16 caracteres, já aparado | **0.2** |
+| `not_host` | tentou `start` sem ser host | **0.2** |
+| `room_not_found` | código de sala não existe ou expirou | **0.2** |
+| `game_started` | chegou depois do `start` | **0.2** |
+| `not_all_ready` | `start` com gente sem marcar pronto; `received` traz quem falta | **0.2** |
+| `not_enough_players` | `start` com menos de 2 | **0.2** |
+| `too_many_players` | o motor recusou mais de 6 nomes | **0.2** |
 | `window_closed` | respondeu a uma janela que já resolveu | 0.4 |
 | `already_responded` | segunda resposta na mesma janela | 0.4 |
 | `invalid_token` | reconexão com token desconhecido | 0.8 |

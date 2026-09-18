@@ -206,7 +206,7 @@ Pra tornar a mão inicial **legível** no teste, um construtor interno no mesmo 
 func newGameWithDeck(names []string, deck []Character) *Game
 ```
 
-O teste escreve o baralho na ordem que quer, então "Marina tem Duque e Assassino" está no
+O teste escreve o baralho na ordem que quer, então "tester2 tem Duque e Assassino" está no
 código do teste, não escondido atrás de um seed que você descobriu rodando.
 
 ## Estratégia de teste
@@ -221,7 +221,7 @@ Três camadas:
    B2, B3, C1, C2, D1, D2) é um teste nomeado, afirmando moedas e influências **por número**.
    O galho C1 roda duas vezes, com `IndependentReactions` ligado e desligado.
 3. **Partida roteirizada** — uma sequência de `Move` do início ao vencedor, conferindo o
-   estado final. O Exemplo de Jogo do livreto (Vanessa, Sérgio, Roberto) vira um desses,
+   estado final. O Exemplo de Jogo do livreto (tester4, tester5, tester6) vira um desses,
    literalmente: é um roteiro de partida publicado com o resultado esperado impresso.
 
 A **lista de pontos de teste** no formato de seis campos que o CLAUDE.md exige não é escrita

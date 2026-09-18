@@ -45,7 +45,7 @@ binário e em duas abas de navegador.
 
 ---
 
-## 0.2 — Lobby de verdade
+## 0.2 — Lobby de verdade — **pronta**
 
 **Entrega:** 2 a 6 jogadores, nomes digitados, marcar pronto, host começa.
 
@@ -55,17 +55,29 @@ lugar da sala única da 0.1; validação de nome (2–16 caracteres, sem duplica
 prontos e ≥2; remoção automática de quem desconectar **no lobby**; erros `room_full`,
 `name_taken` (já existe), `invalid_name`, `not_host`.
 
-**Dívida herdada da 0.1, a pagar aqui:**
+**Dívida herdada da 0.1, paga aqui:** a validação de nome no `join` e o ponto de teste que
+protege os quatro eventos do Golpe contra alvo de uma carta.
 
-- **`join` aceita qualquer nome.** Hoje `{"name":""}` entra e é difundido, e um nome de 1 MB
-  também. WebSocket aberto é fronteira de confiança; o 2–16 é o conserto.
-- **O ponto de teste 22.** O conserto que faz o Golpe contra alvo de uma carta devolver os 4
-  eventos (`action_declared`, `influence_lost`, `player_eliminated`, `game_over`, com `n` sem
-  buraco) não tem teste: revertê-lo não derruba nada, porque os 21 pontos leem o snapshot e nenhum
-  lê a lista de eventos.
+**Decisões tomadas na execução, que este documento não previa:**
+
+- **Mensagem `lobby` nova**, separada do `update`. O lobby é estado de sala e o motor não sabe
+  o que é host nem código de sala; misturar os dois colocaria conceito de sala dentro do motor.
+- **O código da sala viaja na mensagem**, não em `/ws?room=`. O `02-arquitetura.md` mostrava as
+  duas coisas; ficou a da tabela do `03-protocolo.md`.
+- **`game_started` é código próprio**, separado de `room_full`: "sala lotada" e "chegou tarde"
+  são informações diferentes para quem está do outro lado.
+- **Sem `welcome` e sem token.** O código chega no primeiro `lobby`; token só com reconexão, na 0.8.
+- **`engine.MaxPlayers`**, lido pelo motor e pela sala. `NewGame` recusa mais de 6 em vez de
+  estourar o slice do baralho no oitavo jogador.
+- **O host é o assento mais antigo conectado**, derivado da ordem da lista — não é campo guardado.
 
 **Pronto quando:** quatro abas entram, uma fecha antes de marcar pronto e some da lista
-sozinha, e as três restantes começam a partida.
+sozinha, e as três restantes começam a partida. ✅ Verificado no navegador, com as três
+mesas mostrando 3 jogadores e 2 moedas cada.
+
+**Fica para a 0.8:** sala vazia continua viva até o processo morrer (o TTL de 30 min é de lá), e
+quem cai no meio de uma partida é removido sem a mesa ser avisada — decidir o que os outros veem
+nesse instante é o assunto da pausa.
 
 ---
 
