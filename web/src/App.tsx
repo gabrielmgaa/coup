@@ -7,25 +7,23 @@ import {
   type FromClient,
   type FromServer,
   type GameEvent,
+  type LobbyView,
   type PlayerView,
   type View,
 } from './coup'
 
 export default function App() {
   const [name, setName] = useState('')
-  const [connected, setConnected] = useState(false)
+  const [code, setCode] = useState('')
+  const [lobby, setLobby] = useState<LobbyView | null>(null)
   const [state, setState] = useState<View | null>(null)
   const [log, setLog] = useState<GameEvent[]>([])
   const [refusal, setRefusal] = useState<string | null>(null)
   const socket = useRef<WebSocket | null>(null)
 
-  function join(submitted: FormEvent) {
-    submitted.preventDefault()
+  function connect(first: FromClient) {
     const opened = new WebSocket(roomAddress())
-    opened.onopen = () => {
-      setConnected(true)
-      opened.send(JSON.stringify({ type: 'join', name } satisfies FromClient))
-    }
+    opened.onopen = () => opened.send(JSON.stringify(first))
     opened.onmessage = (incoming) => {
       const message: FromServer = JSON.parse(incoming.data)
       if (message.type === 'error') {
@@ -33,44 +31,60 @@ export default function App() {
         return
       }
       setRefusal(null)
+      if (message.type === 'lobby') {
+        setLobby(message.state)
+        return
+      }
       setState(message.state)
       setLog((previous) => [...previous, ...message.events])
     }
-    opened.onclose = () => setConnected(false)
     socket.current = opened
+  }
+
+  function enter(submitted: FormEvent) {
+    submitted.preventDefault()
+    const player = name.trim()
+    const room = code.trim().toUpperCase()
+    connect(room ? { type: 'join', room, name: player } : { type: 'create_room', name: player })
   }
 
   function send(message: FromClient) {
     socket.current?.send(JSON.stringify(message))
   }
 
-  if (!connected && !state) {
+  if (!lobby && !state) {
     return (
       <main className="join-screen">
         <h1>Coup</h1>
-        <form onSubmit={join}>
+        <form onSubmit={enter}>
           <input
             value={name}
             onChange={(typed) => setName(typed.target.value)}
             placeholder="seu nome"
+            maxLength={16}
             autoFocus
           />
-          <button disabled={name.trim() === ''}>entrar na mesa</button>
+          <input
+            value={code}
+            onChange={(typed) => setCode(typed.target.value.toUpperCase())}
+            placeholder="código da mesa"
+            maxLength={4}
+          />
+          <button disabled={name.trim().length < 2 || (code !== '' && code.trim().length !== 4)}>
+            {code === '' ? 'abrir mesa' : 'entrar na mesa'}
+          </button>
         </form>
+        <p className="hint">deixe o código vazio para abrir uma mesa nova</p>
         {refusal && <p className="refusal">{refusal}</p>}
       </main>
     )
   }
 
-  if (!state) {
-    return (
-      <main className="join-screen">
-        <h1>Coup</h1>
-        <p className="waiting">esperando alguém entrar na mesa…</p>
-        {refusal && <p className="refusal">{refusal}</p>}
-      </main>
-    )
+  if (!state && lobby) {
+    return <Lobby lobby={lobby} send={send} refusal={refusal} />
   }
+
+  if (!state) return null
 
   return (
     <main className="table">
@@ -96,6 +110,57 @@ export default function App() {
           <li key={event.n}>{event.text}</li>
         ))}
       </ol>
+    </main>
+  )
+}
+
+function Lobby({
+  lobby,
+  send,
+  refusal,
+}: {
+  lobby: LobbyView
+  send: (message: FromClient) => void
+  refusal: string | null
+}) {
+  const me = lobby.players.find((seat) => seat.name === lobby.you)
+  const everyoneReady = lobby.players.every((seat) => seat.ready)
+  const hosting = lobby.you === lobby.host
+
+  return (
+    <main className="join-screen">
+      <h1>Coup</h1>
+      <p className="room-code">
+        mesa <strong>{lobby.room}</strong>
+      </p>
+
+      <ul className="lobby-seats">
+        {lobby.players.map((seat) => (
+          <li key={seat.name} className={seat.ready ? 'ready' : 'waiting-on'}>
+            {seat.name}
+            {seat.name === lobby.host && <small> host</small>}
+            {seat.name === lobby.you && <small> (você)</small>}
+            <span>{seat.ready ? 'pronto' : 'esperando'}</span>
+          </li>
+        ))}
+      </ul>
+
+      <section className="actions">
+        <button onClick={() => send({ type: 'ready', ready: !me?.ready })}>
+          {me?.ready ? 'ainda não estou pronto' : 'estou pronto'}
+        </button>
+        {hosting && (
+          <button
+            disabled={!everyoneReady || lobby.players.length < 2}
+            onClick={() => send({ type: 'start' })}
+          >
+            começar a partida
+          </button>
+        )}
+      </section>
+
+      {!hosting && <p className="waiting">{lobby.host} começa a partida quando todos estiverem prontos…</p>}
+      {refusal && <p className="refusal">{refusal}</p>}
     </main>
   )
 }

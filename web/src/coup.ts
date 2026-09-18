@@ -26,12 +26,28 @@ export type View = {
 
 export type GameEvent = { n: number; type: string; text: string }
 
+export type SeatView = {
+  name: string
+  ready: boolean
+}
+
+export type LobbyView = {
+  room: string
+  you: string
+  host: string
+  players: SeatView[]
+}
+
 export type FromServer =
+  | { type: 'lobby'; state: LobbyView }
   | { type: 'update'; state: View; events: GameEvent[] }
   | { type: 'error'; code: string; message: string; received?: unknown; expected?: unknown }
 
 export type FromClient =
-  | { type: 'join'; name: string }
+  | { type: 'create_room'; name: string }
+  | { type: 'join'; room: string; name: string }
+  | { type: 'ready'; ready: boolean }
+  | { type: 'start' }
   | { type: 'play'; action: string; target?: string }
   | { type: 'lose_influence'; card: string }
 

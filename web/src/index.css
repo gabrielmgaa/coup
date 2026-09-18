@@ -186,3 +186,60 @@ header {
   font-size: 0.85rem;
   opacity: 0.75;
 }
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.55;
+}
+
+.room-code {
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.room-code strong {
+  color: var(--ouro);
+  font-size: 1.6rem;
+  letter-spacing: 0.25em;
+}
+
+.lobby-seats {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  justify-self: center;
+  min-width: min(22rem, 90vw);
+}
+
+.lobby-seats li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid #ffffff1a;
+  border-radius: 0.4rem;
+  text-align: left;
+}
+
+.lobby-seats li span {
+  margin-left: auto;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.lobby-seats li small {
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+
+.lobby-seats .ready {
+  border-color: var(--ouro);
+}
+
+.lobby-seats .ready span {
+  color: var(--ouro);
+  opacity: 1;
+}
