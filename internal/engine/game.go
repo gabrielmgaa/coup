@@ -29,6 +29,7 @@ const (
 	nobody             = -1
 
 	RulebookCoins = 0
+	MaxPlayers    = 6
 )
 
 type player struct {
@@ -50,7 +51,11 @@ type Game struct {
 	eventsEmitted int
 }
 
-func NewGame(names []string, rng *rand.Rand, initialCoins int) *Game {
+func NewGame(names []string, rng *rand.Rand, initialCoins int) (*Game, error) {
+	if len(names) > MaxPlayers {
+		return nil, &Refusal{Code: "too_many_players", Message: "gente demais para um baralho só",
+			Received: len(names), Expected: MaxPlayers}
+	}
 	deck := baseDeck()
 	shuffle(deck, rng)
 	game := newGameWithDeck(names, deck)
@@ -60,7 +65,7 @@ func NewGame(names []string, rng *rand.Rand, initialCoins int) *Game {
 		}
 	}
 	game.turn = rng.IntN(len(game.players))
-	return game
+	return game, nil
 }
 
 func newGameWithDeck(names []string, deck []Character) *Game {

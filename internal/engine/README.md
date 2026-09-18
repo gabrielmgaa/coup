@@ -11,7 +11,7 @@ nenhum deles.
 
 | | |
 |---|---|
-| `game.go` | `Game`, `NewGame`, `Phase`, `Apply` — o type switch e o pipeline de uma ação |
+| `game.go` | `Game`, `NewGame`, `Phase`, `Apply`, `MaxPlayers` — o type switch e o pipeline de uma ação |
 | `move.go` | a união selada de entradas: `Act`, `LoseInfluence` |
 | `rules.go` | `Rule` e a tabela `rules`: uma linha por ação, com `Cost`, `NeedsTarget`, `Effect` |
 | `influence.go` | perder carta, escolher qual, eliminação, condição de vitória |
@@ -33,6 +33,10 @@ nenhum deles.
   semeia do `crypto/rand`. Pra mão legível no teste existe `newGameWithDeck`, interno ao pacote.
 - **A assimetria do dinheiro mora só na tabela:** contestação bem-sucedida devolve o custo,
   bloqueio bem-sucedido não.
+- **`MaxPlayers` é daqui, e `NewGame` recusa mais que isso.** O baralho tem 15 cartas e cada
+  jogador leva 2: no oitavo, distribuir estoura o slice. `NewGame` devolve `too_many_players`
+  em vez de panicar, porque a sala não é a única que chama — a CLI da 0.3 e os bots chamam
+  direto. `internal/server` lê a mesma constante, então o teto muda num lugar só.
 
 ## O que não entra aqui
 
