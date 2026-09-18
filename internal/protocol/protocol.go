@@ -4,10 +4,33 @@ import "github.com/gabrielmgaa/coup/internal/engine"
 
 type FromClient struct {
 	Type   string `json:"type"`
+	Room   string `json:"room,omitempty"`
 	Name   string `json:"name,omitempty"`
 	Action string `json:"action,omitempty"`
 	Target string `json:"target,omitempty"`
 	Card   string `json:"card,omitempty"`
+	Ready  bool   `json:"ready,omitempty"`
+}
+
+type SeatView struct {
+	Name  string `json:"name"`
+	Ready bool   `json:"ready"`
+}
+
+type LobbyView struct {
+	Room    string     `json:"room"`
+	You     string     `json:"you"`
+	Host    string     `json:"host"`
+	Players []SeatView `json:"players"`
+}
+
+type Lobby struct {
+	Type  string    `json:"type"`
+	State LobbyView `json:"state"`
+}
+
+func NewLobby(state LobbyView) Lobby {
+	return Lobby{Type: "lobby", State: state}
 }
 
 type Update struct {
@@ -50,5 +73,6 @@ func ToMove(message FromClient, by string) (engine.Move, error) {
 		return engine.LoseInfluence{By: by, Card: card}, nil
 	}
 	return nil, &engine.Refusal{Code: "illegal_action", Message: "mensagem que a sala não entende",
-		Received: message.Type, Expected: []string{"join", "play", "lose_influence"}}
+		Received: message.Type,
+		Expected: []string{"create_room", "join", "ready", "start", "play", "lose_influence", "leave"}}
 }

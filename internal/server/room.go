@@ -17,6 +17,7 @@ const (
 
 type connection struct {
 	name   string
+	ready  bool
 	outbox chan []byte
 	closed bool
 }
@@ -40,10 +41,11 @@ type Room struct {
 	game         *engine.Game
 	rng          *rand.Rand
 	initialCoins int
+	code         string
 }
 
-func newRoom(rng *rand.Rand, initialCoins int) *Room {
-	return &Room{inbox: make(chan command), rng: rng, initialCoins: initialCoins}
+func newRoom(rng *rand.Rand, initialCoins int, code string) *Room {
+	return &Room{inbox: make(chan command), rng: rng, initialCoins: initialCoins, code: code}
 }
 
 func (r *Room) run() {
@@ -51,6 +53,10 @@ func (r *Room) run() {
 		switch received.message.Type {
 		case "join":
 			r.join(received)
+		case "ready":
+			r.markReady(received)
+		case "start":
+			r.start(received)
 		case "leave":
 			r.remove(received.from)
 		default:
@@ -61,13 +67,19 @@ func (r *Room) run() {
 
 func (r *Room) join(received command) {
 	if r.game != nil {
-		r.refuse(received.from, &engine.Refusal{Code: "room_full", Message: "a partida já começou",
+		r.turnAway(received.from, &engine.Refusal{Code: "game_started",
+			Message:  "a partida já começou",
 			Received: received.message.Name, Expected: "uma sala que ainda não começou"})
+		return
+	}
+	if len(r.connections) >= engine.MaxPlayers {
+		r.turnAway(received.from, &engine.Refusal{Code: "room_full", Message: "a sala está cheia",
+			Received: len(r.connections) + 1, Expected: engine.MaxPlayers})
 		return
 	}
 	for _, seated := range r.connections {
 		if seated.name == received.message.Name {
-			r.refuse(received.from, &engine.Refusal{Code: "name_taken",
+			r.turnAway(received.from, &engine.Refusal{Code: "name_taken",
 				Message:  "já tem alguém com esse nome na sala",
 				Received: received.message.Name, Expected: "um nome ainda não usado nesta sala"})
 			return
@@ -75,10 +87,51 @@ func (r *Room) join(received command) {
 	}
 	received.from.name = received.message.Name
 	r.connections = append(r.connections, received.from)
-	if len(r.connections) < playersToStart {
+	r.broadcast(nil)
+}
+
+func (r *Room) markReady(received command) {
+	if r.game != nil {
+		r.refuse(received.from, &engine.Refusal{Code: "game_started",
+			Message:  "a partida já começou",
+			Received: "ready", Expected: "uma sala que ainda não começou"})
 		return
 	}
-	r.game = engine.NewGame(r.names(), r.rng, r.initialCoins)
+	received.from.ready = received.message.Ready
+	r.broadcast(nil)
+}
+
+func (r *Room) start(received command) {
+	if r.game != nil {
+		r.refuse(received.from, &engine.Refusal{Code: "game_started",
+			Message:  "a partida já começou",
+			Received: "start", Expected: "uma sala que ainda não começou"})
+		return
+	}
+	if host := r.host(); received.from.name != host {
+		r.refuse(received.from, &engine.Refusal{Code: "not_host",
+			Message:  "só quem abriu a sala começa a partida",
+			Received: received.from.name, Expected: host})
+		return
+	}
+	if waiting := r.notReady(); len(waiting) > 0 {
+		r.refuse(received.from, &engine.Refusal{Code: "not_all_ready",
+			Message:  "ainda tem gente sem marcar pronto",
+			Received: waiting, Expected: "todos prontos"})
+		return
+	}
+	if len(r.connections) < playersToStart {
+		r.refuse(received.from, &engine.Refusal{Code: "not_enough_players",
+			Message:  "uma pessoa sozinha não joga Coup",
+			Received: len(r.connections), Expected: "2 a 6"})
+		return
+	}
+	dealt, err := engine.NewGame(r.names(), r.rng, r.initialCoins)
+	if err != nil {
+		r.refuse(received.from, err)
+		return
+	}
+	r.game = dealt
 	r.broadcast(nil)
 }
 
@@ -86,7 +139,7 @@ func (r *Room) play(received command) {
 	if r.game == nil {
 		r.refuse(received.from, &engine.Refusal{Code: "illegal_action",
 			Message:  "a partida ainda não começou",
-			Received: received.message.Type, Expected: "join"})
+			Received: received.message.Type, Expected: []string{"ready", "start"}})
 		return
 	}
 	move, err := protocol.ToMove(received.message, received.from.name)
@@ -105,11 +158,48 @@ func (r *Room) play(received command) {
 func (r *Room) broadcast(events []engine.Event) {
 	connected := make([]*connection, 0, len(r.connections))
 	for _, c := range r.connections {
-		if r.send(c, protocol.NewUpdate(engine.ViewFor(r.game, c.name), events)) {
+		if r.send(c, r.messageFor(c, events)) {
 			connected = append(connected, c)
 		}
 	}
 	r.connections = connected
+}
+
+func (r *Room) messageFor(c *connection, events []engine.Event) any {
+	if r.game == nil {
+		return protocol.NewLobby(r.lobbyFor(c))
+	}
+	return protocol.NewUpdate(engine.ViewFor(r.game, c.name), events)
+}
+
+func (r *Room) lobbyFor(c *connection) protocol.LobbyView {
+	seats := make([]protocol.SeatView, 0, len(r.connections))
+	for _, seated := range r.connections {
+		seats = append(seats, protocol.SeatView{Name: seated.name, Ready: seated.ready})
+	}
+	return protocol.LobbyView{Room: r.code, You: c.name, Host: r.host(), Players: seats}
+}
+
+func (r *Room) host() string {
+	if len(r.connections) == 0 {
+		return ""
+	}
+	return r.connections[0].name
+}
+
+func (r *Room) notReady() []string {
+	waiting := []string{}
+	for _, seated := range r.connections {
+		if !seated.ready {
+			waiting = append(waiting, seated.name)
+		}
+	}
+	return waiting
+}
+
+func (r *Room) turnAway(c *connection, reason *engine.Refusal) {
+	r.send(c, protocol.NewRefusal(reason))
+	c.drop()
 }
 
 func (r *Room) refuse(c *connection, reason error) {
@@ -149,6 +239,9 @@ func (r *Room) remove(target *connection) {
 		}
 	}
 	r.connections = remaining
+	if r.game == nil {
+		r.broadcast(nil)
+	}
 }
 
 func (r *Room) names() []string {

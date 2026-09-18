@@ -12,6 +12,12 @@ Um arquivo só, `protocol.go`, e ele é pequeno de propósito.
 | `FromClient` | tudo que chega: `type`, e os campos opcionais `name`, `action`, `target`, `card` |
 | `Update` | `{"type":"update","state":…,"events":[…]}` — o snapshot e a narração, **juntos, sempre** |
 | `RefusalMessage` | `{"type":"error", …}` — o `engine.Refusal` com um `type` na frente |
+| `Lobby` | `{"type":"lobby","state":{room, you, host, players:[{name, ready}]}}` — antes de a partida começar |
+
+**`lobby` e `update` são mensagens diferentes de propósito.** O lobby é estado de sala — quem
+sentou, quem marcou pronto, quem é host — e o motor não sabe nada disso. O `update` é
+estritamente partida. Assim o cliente troca de tela quando o tipo da mensagem muda, em vez de
+adivinhar pela forma do `state`.
 
 `ToMove` é a tradução de entrada: `"play"` vira `engine.Act`, `"lose_influence"` vira
 `engine.LoseInfluence`. Nome de ação e de carta chegam em inglês e são resolvidos pelo motor
