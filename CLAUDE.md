@@ -120,12 +120,14 @@ must stay in that one place.
 
 ### The site is a Next.js static export
 
-`web/` is Next.js (App Router) + Tailwind v4 with `output: 'export'` and `distDir: 'dist'`: no
+`web/` is Next.js (App Router) + Tailwind v4 + shadcn/ui with `output: 'export'` and `distDir: 'dist'`: no
 SSR, no server routes, no rewrites in production — one page, rendered only on the client
 (`next/dynamic` with `ssr: false`), talking to the Go server over `/ws`. Fonts come from
 `@fontsource` so the binary works on a LAN with no internet. The visual direction ("Esmalte":
 paper, 3 px ink outline, hard shadow, one hue per card) lives as Tailwind tokens in
-`web/app/globals.css`; card hues and glyphs in `web/lib/palette.ts` and `web/components/cards.tsx`.
+`web/app/globals.css`, where shadcn's semantic tokens (`primary`, `border`, `ring`…) point at the
+Esmalte colors; the components in `web/components/ui/` are shadcn's, restyled in their `cva`
+variants. Card hues and glyphs are in `web/lib/palette.ts` and `web/components/cards.tsx`.
 `web/CLAUDE.md` is just `@AGENTS.md`; `web/AGENTS.md` holds the block `next dev` maintains
 between its `nextjs-agent-rules` markers (read `node_modules/next/dist/docs/` before touching
 Next APIs — this Next may differ from what you remember), followed by the rules specific to

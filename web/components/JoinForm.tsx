@@ -1,8 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import type { Table } from '@/lib/connection'
-import { Banner, Brand } from './Brand'
 import { cardNames, tint } from '@/lib/palette'
+import { Brand, Notice } from './Brand'
 import { Glyph } from './cards'
+import { Button } from './ui/button'
+import { Checkbox } from './ui/checkbox'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
 
 export function JoinForm({ table }: { table: Table }) {
   const [name, setName] = useState('')
@@ -24,7 +28,7 @@ export function JoinForm({ table }: { table: Table }) {
     <main className="mx-auto flex min-h-dvh max-w-[820px] flex-col justify-center gap-10 px-5 py-12">
       <header className="flex flex-col items-center gap-6 text-center">
         <Brand hero />
-        <p className="max-w-[560px] text-[17px] leading-relaxed text-muted text-pretty">
+        <p className="max-w-[560px] text-[17px] leading-relaxed text-pretty text-muted-foreground">
           Duas influências, uma corte podre e ninguém pra checar se você está mentindo.
           <br />
           De 2 a 6 pessoas. A última de pé fica com o que sobrou.
@@ -33,53 +37,51 @@ export function JoinForm({ table }: { table: Table }) {
 
       <form onSubmit={enter} className="flex flex-col gap-[18px]">
         <div className="flex gap-4 max-md:flex-col">
-          <label className="flex grow flex-col gap-2">
-            <span className="label">seu nome</span>
-            <input
-              value={name}
-              onChange={(typed) => setName(typed.target.value)}
-              maxLength={16}
-              autoFocus
-              className="h-[60px] rounded-2xl border-3 border-ink bg-card px-5 text-xl font-semibold"
-            />
-          </label>
-          <label className="flex w-[236px] flex-col gap-2 max-md:w-full">
-            <span className="label">código da mesa</span>
-            <input
+          <div className="flex grow flex-col gap-2">
+            <Label htmlFor="name" className="eyebrow">
+              seu nome
+            </Label>
+            <Input id="name" value={name} onChange={(typed) => setName(typed.target.value)} maxLength={16} autoFocus />
+          </div>
+          <div className="flex w-[236px] flex-col gap-2 max-md:w-full">
+            <Label htmlFor="code" className="eyebrow">
+              código da mesa
+            </Label>
+            <Input
+              id="code"
               value={code}
               onChange={(typed) => setCode(typed.target.value.toUpperCase())}
               maxLength={4}
               placeholder="····"
-              className="h-[60px] rounded-2xl border-3 border-ink bg-gold px-4 text-center font-mono text-2xl font-bold tracking-[0.3em] uppercase"
+              className="bg-gold px-4 text-center font-mono text-2xl font-bold tracking-[0.3em] uppercase"
             />
-          </label>
+          </div>
         </div>
-        <button
-          className="btn btn-primary min-h-[62px] w-full text-[19px]"
+        <Button
+          variant="default"
+          size="lg"
+          className="w-full"
           disabled={name.trim().length < 2 || (!opening && code.trim().length !== 4)}
         >
           {opening ? 'abrir mesa nova' : 'entrar na mesa'}
-        </button>
-        <p className="text-center text-sm font-medium text-muted">deixe o código vazio para abrir uma mesa nova</p>
+        </Button>
+        <p className="text-center text-sm font-medium text-muted-foreground">deixe o código vazio para abrir uma mesa nova</p>
         {opening && (
-          <label className="flex items-center justify-center gap-2.5 text-sm font-medium text-muted">
-            <input
-              type="checkbox"
-              checked={independent}
-              onChange={(ticked) => setIndependent(ticked.target.checked)}
-              className="size-5 accent-ink"
-            />
-            regra da casa: quem contesta ainda pode bloquear
-          </label>
+          <div className="flex items-center justify-center gap-2.5">
+            <Checkbox id="independent" checked={independent} onCheckedChange={(ticked) => setIndependent(ticked === true)} />
+            <Label htmlFor="independent" className="text-muted-foreground">
+              regra da casa: quem contesta ainda pode bloquear
+            </Label>
+          </div>
         )}
-        {table.reconnecting && <Banner tone="gold">reconectando à mesa…</Banner>}
-        {table.refusal && <Banner>{table.refusal}</Banner>}
+        {table.reconnecting && <Notice tone="default">reconectando à mesa…</Notice>}
+        {table.refusal && <Notice>{table.refusal}</Notice>}
       </form>
 
       <footer className="flex flex-col items-center gap-6">
         <div className="flex gap-3.5 text-white" aria-hidden="true">
           {cardNames.map((card) => (
-            <span key={card} className={`flex size-[54px] items-center justify-center rounded-2xl border-3 border-ink ${tint[card]}`}>
+            <span key={card} className={`flex size-[54px] items-center justify-center rounded-2xl border-3 border-border ${tint[card]}`}>
               <Glyph card={card} size={30} />
             </span>
           ))}

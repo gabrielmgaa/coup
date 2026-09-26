@@ -13,7 +13,9 @@
         "allowConstantExport": true,
         "allowExportNames": [
           "metadata",
-          "viewport"
+          "viewport",
+          "buttonVariants",
+          "badgeVariants"
         ]
       }
     ]

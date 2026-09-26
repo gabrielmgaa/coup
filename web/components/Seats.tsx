@@ -1,5 +1,7 @@
 import type { GameState, PlayerView } from '@/lib/coup'
+import { cn } from '@/lib/utils'
 import { CardBack, CardChip, Coins } from './cards'
+import { Card, CardContent, CardHeader } from './ui/card'
 
 export function Seats({ game }: { game: GameState }) {
   const others = game.players.filter((player) => player.name !== game.you)
@@ -27,29 +29,31 @@ function statusOf(player: PlayerView, game: GameState): string {
 function Seat({ player, game }: { player: PlayerView; game: GameState }) {
   const onTurn = player.name === game.turn_of && !player.eliminated
   const dropped = game.disconnected.includes(player.name)
-  const frame = player.eliminated
-    ? 'border-faint bg-table'
-    : onTurn
-      ? 'border-ink bg-ink text-white shadow-gold'
-      : 'border-ink bg-card shadow-lift'
-  const strip = player.eliminated
-    ? 'border-faint bg-blood-wash text-blood'
-    : onTurn
-      ? 'border-ink-soft bg-ink text-gold'
-      : dropped
-        ? 'border-ink bg-gold-wash text-muted'
-        : 'border-ink bg-table text-muted'
 
   return (
-    <article className={`flex flex-col overflow-hidden rounded-[18px] border-3 max-md:flex-row max-md:items-center max-md:rounded-2xl ${frame}`}>
-      <div className={`border-b-3 px-4 py-2 max-md:hidden ${strip}`}>
+    <Card
+      className={cn(
+        'rounded-[18px] shadow-lift max-md:flex-row max-md:items-center max-md:rounded-2xl',
+        onTurn && 'bg-primary text-white shadow-gold',
+        player.eliminated && 'border-faint bg-secondary shadow-none',
+      )}
+    >
+      <CardHeader
+        className={cn(
+          'border-b-3 bg-secondary px-4 pt-2 pb-2 text-muted-foreground max-md:hidden',
+          onTurn && 'border-ink-soft bg-primary text-gold',
+          dropped && 'bg-gold-wash',
+          player.eliminated && 'border-faint bg-blood-wash text-blood',
+        )}
+      >
         <span className="text-[11px] leading-[13px] font-bold tracking-[0.16em] uppercase">{statusOf(player, game)}</span>
-      </div>
-      <div className="flex grow flex-col gap-2.5 px-4 pt-3 pb-3.5 max-md:flex-row max-md:items-center max-md:py-2.5">
+      </CardHeader>
+      <CardContent className="flex grow flex-col gap-2.5 px-4 pt-3 pb-3.5 max-md:flex-row max-md:items-center max-md:py-2.5">
         <h2
-          className={`text-[22px] leading-none font-bold max-md:grow max-md:text-[19px] ${
-            player.eliminated ? 'text-muted line-through decoration-blood' : ''
-          }`}
+          className={cn(
+            'text-[22px] leading-none font-bold max-md:grow max-md:text-[19px]',
+            player.eliminated && 'text-muted-foreground line-through decoration-blood',
+          )}
         >
           {player.name}
         </h2>
@@ -62,7 +66,7 @@ function Seat({ player, game }: { player: PlayerView; game: GameState }) {
             <CardChip key={position} card={card} />
           ))}
         </div>
-      </div>
-    </article>
+      </CardContent>
+    </Card>
   )
 }

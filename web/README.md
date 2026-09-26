@@ -1,6 +1,6 @@
 # `web` — a mesa no navegador
 
-Next.js (App Router) + Tailwind v4 + TypeScript, como **export estático**. Desenha a mesa a
+Next.js (App Router) + Tailwind v4 + shadcn/ui + TypeScript, como **export estático**. Desenha a mesa a
 partir do snapshot que chega pelo WebSocket e manda de volta o que foi clicado. **Não tem regra
 de Coup aqui dentro, e não pode ganhar nenhuma.**
 
@@ -10,11 +10,14 @@ de Coup aqui dentro, e não pode ganhar nenhuma.**
 |---|---|
 | `app/layout.tsx` | o HTML de fora: `lang`, título, ícone, cor do tema |
 | `app/page.tsx` | a única página; carrega `components/Coup` só no navegador (`ssr: false`) |
-| `app/globals.css` | Tailwind e o tema da direção Esmalte: cores, fontes, sombras sólidas e os utilitários `btn`, `tag`, `label`, `panel`, `numeric` |
+| `app/globals.css` | Tailwind, a base do shadcn, e o tema: os nomes semânticos do shadcn (`primary`, `muted-foreground`, `border`, `ring`…) apontando para as cores Esmalte, as sombras sólidas e os utilitários `eyebrow` e `numeric` |
+| `components.json` | a configuração do shadcn/ui: estilo `new-york`, aliases `@/components/ui` e `@/lib/utils`, ícones `lucide` |
+| `components/ui/` | os componentes shadcn — `button`, `badge`, `card`, `input`, `label`, `checkbox`, `alert`, `progress`, `separator` — com as variantes reescritas na direção Esmalte |
+| `lib/utils.ts` | `cn`, do pacote `cn`, para juntar classes |
 | `lib/coup.ts` | os tipos do fio (`GameState`, `WindowView`, `FromServer`…), os rótulos pt-BR (`actionLabel`, `cardLabel`, `optionLabel`) e a sessão no `localStorage` |
 | `lib/connection.ts` | `useTable`: WebSocket, `welcome` salvo, reconexão automática, a última partida para a tela de fim; `useSecondsLeft` para os relógios |
 | `lib/palette.ts` | a cor de cada carta, como classe Tailwind escrita por extenso |
-| `components/cards.tsx` | as cinco cartas (glifo, legenda, nome), o verso, o chip de carta revelada, as moedas e a narração que pinta o nome da carta na cor dela |
+| `components/cards.tsx` | `PlayingCard` (glifo, legenda, nome), o verso, o chip de carta revelada, as moedas e a narração que pinta o nome da carta na cor dela |
 | `components/Coup.tsx` | escolhe a tela: entrada, lobby, fim de partida ou mesa |
 | `components/JoinForm.tsx`, `Lobby.tsx`, `Ending.tsx` | as três telas fora da partida |
 | `components/Table.tsx` | a mesa: barra do topo, e as quatro áreas abaixo |

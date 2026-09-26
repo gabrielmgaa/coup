@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { capitalized, cardLabel } from '@/lib/coup'
 import { cardNames, inkOf, tint } from '@/lib/palette'
+import { Badge } from './ui/badge'
 
 type Face = { caption: string; blocks?: string; glyph: ReactNode }
 
@@ -87,12 +88,12 @@ const cardSizes = {
 
 const longNameFrom = 9
 
-export function Card({ card, size = 'large', lift = 'shadow-lift' }: { card: string; size?: keyof typeof cardSizes; lift?: string }) {
+export function PlayingCard({ card, size = 'large', lift = 'shadow-lift' }: { card: string; size?: keyof typeof cardSizes; lift?: string }) {
   const face = faces[card]
   const measure = cardSizes[size]
   return (
     <div
-      className={`flex shrink-0 flex-col justify-between border-3 border-ink text-left text-white ${lift} ${tint[card]} ${measure.box}`}
+      className={`flex shrink-0 flex-col justify-between border-3 border-border text-left text-white ${lift} ${tint[card]} ${measure.box}`}
       role="img"
       aria-label={capitalized(cardLabel(card))}
     >
@@ -119,7 +120,7 @@ export function CardBack({ size = 'small' }: { size?: 'small' | 'tiny' }) {
   const measure = size === 'small' ? 'h-14 w-10 rounded-[7px] max-md:h-[30px] max-md:w-[22px] max-md:rounded-[5px]' : 'h-[30px] w-[22px] rounded-[5px]'
   return (
     <span
-      className={`inline-block border-2 border-ink bg-paper bg-[repeating-linear-gradient(45deg,var(--color-line)_0_2px,transparent_2px_8px)] ${measure}`}
+      className={`inline-block border-2 border-border bg-paper bg-[repeating-linear-gradient(45deg,var(--color-line)_0_2px,transparent_2px_8px)] ${measure}`}
       aria-label="carta virada"
     />
   )
@@ -127,11 +128,9 @@ export function CardBack({ size = 'small' }: { size?: 'small' | 'tiny' }) {
 
 export function CardChip({ card }: { card: string }) {
   return (
-    <span
-      className={`inline-block rounded-full border-2 border-ink px-2.5 py-1 text-[10px] font-bold tracking-[0.06em] text-white uppercase line-through ${tint[card]}`}
-    >
+    <Badge variant="revealed" className={tint[card]}>
       {cardLabel(card)}
-    </span>
+    </Badge>
   )
 }
 

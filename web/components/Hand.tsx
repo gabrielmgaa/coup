@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { actionLabel, capitalized, cardLabel, type AvailableAction, type GameState, type Send } from '@/lib/coup'
-import { Card, CardChip, Coins } from './cards'
+import { cn } from '@/lib/utils'
+import { CardChip, Coins, PlayingCard } from './cards'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Card, CardContent } from './ui/card'
 
 type HandProps = { game: GameState; send: Send; secondsLeft: number }
 
@@ -11,32 +15,38 @@ export function Hand({ game, send, secondsLeft }: HandProps) {
   const onTurn = game.turn_of === game.you && game.phase === 'awaiting_action'
 
   return (
-    <section className="panel flex gap-6 p-6 max-md:flex-col max-md:p-4">
-      {game.your_returns ? (
-        <Exchange cards={cards} pairs={game.your_returns} send={send} />
-      ) : (
-        <>
-          <HandCards cards={cards} revealing={game.losing === game.you} send={send} />
-          <div className="flex min-w-0 grow flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              {onTurn && <span className="tag border-ink bg-ink text-paper">sua vez</span>}
-              <h2 className="text-2xl font-bold">{me.name}</h2>
-              {secondsLeft > 0 && onTurn && <span className="numeric text-muted">{secondsLeft}s</span>}
-              <span className="grow" />
-              <Coins count={me.coins} />
-            </div>
-            {me.revealed.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {me.revealed.map((card, position) => (
-                  <CardChip key={position} card={card} />
-                ))}
+    <Card>
+      <CardContent className="flex gap-6 p-6 max-md:flex-col max-md:p-4">
+        {game.your_returns ? (
+          <Exchange cards={cards} pairs={game.your_returns} send={send} />
+        ) : (
+          <>
+            <HandCards cards={cards} revealing={game.losing === game.you} send={send} />
+            <div className="flex min-w-0 grow flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {onTurn && <Badge variant="solid">sua vez</Badge>}
+                <h2 className="text-2xl font-bold">{me.name}</h2>
+                {secondsLeft > 0 && onTurn && <span className="numeric text-muted-foreground">{secondsLeft}s</span>}
+                <span className="grow" />
+                <Coins count={me.coins} />
               </div>
-            )}
-            {onTurn ? <Actions actions={game.your_actions} send={send} /> : <p className="text-sm font-medium text-muted">{waitingLine(game)}</p>}
-          </div>
-        </>
-      )}
-    </section>
+              {me.revealed.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {me.revealed.map((card, position) => (
+                    <CardChip key={position} card={card} />
+                  ))}
+                </div>
+              )}
+              {onTurn ? (
+                <Actions actions={game.your_actions} send={send} />
+              ) : (
+                <p className="text-sm font-medium text-muted-foreground">{waitingLine(game)}</p>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -52,16 +62,18 @@ function HandCards({ cards, revealing, send }: { cards: string[]; revealing: boo
     <div className="flex shrink-0 gap-3.5">
       {cards.map((card, position) =>
         revealing ? (
-          <button
+          <Button
             key={position}
-            className="flex cursor-pointer flex-col items-center gap-2.5 rounded-[18px] font-bold transition-transform hover:-translate-y-1"
+            variant="bare"
+            size="bare"
+            className="flex-col gap-2.5"
             onClick={() => send({ type: 'lose_influence', card })}
           >
-            <Card card={card} />
+            <PlayingCard card={card} />
             revelar o {capitalized(cardLabel(card))}
-          </button>
+          </Button>
         ) : (
-          <Card key={position} card={card} />
+          <PlayingCard key={position} card={card} />
         ),
       )}
     </div>
@@ -74,25 +86,21 @@ function Actions({ actions, send }: { actions: AvailableAction[]; send: Send }) 
   if (aiming) {
     return (
       <div className="flex flex-col gap-3">
-        <span className="label">
-          {actionLabel(aiming.name)} — escolha o alvo
-        </span>
+        <span className="eyebrow">{actionLabel(aiming.name)} — escolha o alvo</span>
         <div className="flex flex-wrap gap-2.5 max-md:grid max-md:grid-cols-2">
           {aiming.targets?.map((target) => (
-            <button
+            <Button
               key={target}
-              className="btn btn-primary"
+              variant="default"
               onClick={() => {
                 send({ type: 'play', action: aiming.name, target })
                 setAiming(null)
               }}
             >
               {target}
-            </button>
+            </Button>
           ))}
-          <button className="btn" onClick={() => setAiming(null)}>
-            cancelar
-          </button>
+          <Button onClick={() => setAiming(null)}>cancelar</Button>
         </div>
       </div>
     )
@@ -101,15 +109,16 @@ function Actions({ actions, send }: { actions: AvailableAction[]; send: Send }) 
   return (
     <div className="flex flex-wrap gap-2.5 max-md:grid max-md:grid-cols-2">
       {actions.map((action) => (
-        <button
+        <Button
           key={action.name}
-          className={`btn ${action.name === 'income' ? 'btn-primary' : ''}`}
+          variant={action.name === 'income' ? 'default' : 'outline'}
+          className="max-md:gap-1.5 max-md:px-3 max-md:text-[15px] max-md:whitespace-normal"
           onClick={() => (action.targets ? setAiming(action) : send({ type: 'play', action: action.name }))}
         >
           {actionLabel(action.name)}
           {action.cost ? <span className="font-mono text-[13px]">−{action.cost}</span> : null}
-          {action.targets && <span className="text-[11px] tracking-[0.12em] text-muted uppercase">alvo ▸</span>}
-        </button>
+          {action.targets && <span className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">alvo ▸</span>}
+        </Button>
       ))}
     </div>
   )
@@ -129,38 +138,41 @@ function Exchange({ cards, pairs, send }: { cards: string[]; pairs: string[][]; 
   return (
     <div className="flex w-full flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="tag border-ink bg-ink text-paper">troca</span>
+        <Badge variant="solid">troca</Badge>
         <h2 className="text-2xl font-bold">Escolha as duas que voltam pro baralho</h2>
         <span className="grow" />
-        <span className="numeric text-muted">{returning.length} de 2</span>
+        <span className="numeric text-muted-foreground">{returning.length} de 2</span>
       </div>
       <div className="flex flex-wrap gap-3.5">
         {cards.map((card, position) => {
           const goesBack = returning.includes(position)
           return (
-            <button
+            <Button
               key={position}
+              variant="bare"
+              size="bare"
               aria-pressed={goesBack}
-              className="flex cursor-pointer flex-col items-center gap-2.5 rounded-[18px] font-bold"
+              className="flex-col gap-2.5"
               onClick={() => toggle(position)}
             >
-              <span className={`transition ${goesBack ? 'translate-y-2 opacity-35' : ''}`}>
-                <Card card={card} lift={goesBack ? 'shadow-none' : 'shadow-lift'} />
+              <span className={cn('transition', goesBack && 'translate-y-2 opacity-35')}>
+                <PlayingCard card={card} lift={goesBack ? 'shadow-none' : 'shadow-lift'} />
               </span>
-              <span className={`text-[13px] tracking-[0.1em] uppercase ${goesBack ? 'text-blood' : 'text-ambassador'}`}>
+              <span className={cn('text-[13px] tracking-[0.1em] uppercase', goesBack ? 'text-blood' : 'text-ambassador')}>
                 {goesBack ? 'devolve' : '✓ fica'}
               </span>
-            </button>
+            </Button>
           )
         })}
       </div>
-      <button
-        className="btn btn-primary self-start"
+      <Button
+        variant="default"
+        className="self-start"
         disabled={!valid}
         onClick={() => send({ type: 'return_cards', cards: returning.map((position) => cards[position]) })}
       >
         devolver as duas marcadas
-      </button>
+      </Button>
     </div>
   )
 }

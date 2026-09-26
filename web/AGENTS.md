@@ -44,6 +44,30 @@ captions in `components/cards.tsx` are printed card text, not rules.
 - Card and action names cross the wire in English and become pt-BR only through `actionLabel`,
   `cardLabel` and `optionLabel` in `lib/coup.ts`.
 
+## shadcn/ui
+
+Every interactive or framed element comes from `components/ui/` — `Button`, `Badge`, `Card`,
+`Input`, `Label`, `Checkbox`, `Alert`, `Progress`, `Separator`. They are shadcn/ui components
+(style `new-york`, Radix primitives from `radix-ui`, icons from `lucide-react`, class merging
+from the `cn` package through `lib/utils.ts`), configured by `components.json` and restyled to
+Esmalte: this project owns their code, so the look lives in their `cva` variants, not in
+overrides at the call site.
+
+- **Reach for a variant before a className.** `Button` has `default` (ink), `outline` (paper
+  card), `challenge`, one variant per card (`duke`, `assassin`, `captain`, `ambassador`,
+  `contessa`) and `bare` for a card that is itself the button; sizes `default`, `md`, `lg`. `Badge`
+  has `default`, `solid`, `ready` and `revealed`. If a new look repeats, it becomes a variant.
+- **The theme is shadcn's semantic tokens mapped onto Esmalte** in `app/globals.css`:
+  `primary` is ink, `background` is paper, `secondary`/`muted` are the table band,
+  `muted-foreground` is the secondary text, `accent` is the gold wash, `destructive` is blood,
+  `border`/`input` are the ink outline, `ring` is gold. Use the semantic name when one fits;
+  the Esmalte names (`paper`, `table`, `ink`, `gold`, `blood`, the card hues) cover the rest.
+- **Adding a component:** `pnpm dlx shadcn@latest add <name>` when the network reaches
+  `ui.shadcn.com`; otherwise copy it from `github.com/shadcn-ui/ui`, path
+  `apps/v4/registry/new-york-v4/ui/<name>.tsx`, point its `cn` import at `@/lib/utils`, restyle it
+  to Esmalte, and keep it free of comments. The playing card is `PlayingCard` in
+  `components/cards.tsx` — `Card` is the shadcn panel.
+
 ## The Esmalte design
 
 The visual direction comes from the design canvas "Coup — Direção Visual" (direction
@@ -58,8 +82,9 @@ component.
   in `lib/palette.ts` (`tint`, `inkOf`), never from a template like `` `bg-${card}` ``.
 - Bricolage Grotesque for everything; JetBrains Mono (`numeric`) only for coins, codes and
   clocks. Uppercase only in `label` and `tag`.
-- Reuse the utilities `btn`, `btn-primary`, `tag`, `label`, `panel`, `numeric` before adding new
-  ones. Touch targets stay at least 44 px; phones (below `md`) stack everything in one column.
+- Two utilities complete the components: `eyebrow` (the small uppercase label) and `numeric`
+  (mono, tabular). Touch targets stay at least 44 px; phones (below `md`) stack everything in one
+  column.
 
 ## Commands
 

@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import type { LobbyView, Send } from '@/lib/coup'
-import { Banner, Brand } from './Brand'
+import { Brand, Notice } from './Brand'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 
 const seatsAtTheTable = 6
 
 export function Lobby({ lobby, send, refusal }: { lobby: LobbyView; send: Send; refusal: string | null }) {
   const [copied, setCopied] = useState(false)
   const me = lobby.players.find((seat) => seat.name === lobby.you)
-  const everyoneReady = lobby.players.every((seat) => seat.ready)
-  const canStart = everyoneReady && lobby.players.length >= 2
+  const canStart = lobby.players.every((seat) => seat.ready) && lobby.players.length >= 2
   const hosting = lobby.you === lobby.host
   const freeSeats = Math.max(0, seatsAtTheTable - lobby.players.length)
 
@@ -21,40 +22,38 @@ export function Lobby({ lobby, send, refusal }: { lobby: LobbyView; send: Send; 
       <header className="flex items-center gap-3">
         <Brand />
         <span className="grow" />
-        <span className="tag">sala de espera</span>
+        <Badge>sala de espera</Badge>
       </header>
 
       <section className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
-          <span className="label">código da mesa</span>
-          <span className="rounded-full border-3 border-ink bg-gold py-1.5 pr-4 pl-6 font-mono text-[clamp(36px,10vw,56px)] font-bold tracking-[0.2em] shadow-lift">
+          <span className="eyebrow">código da mesa</span>
+          <span className="rounded-full border-3 border-border bg-gold py-1.5 pr-4 pl-6 font-mono text-[clamp(36px,10vw,56px)] font-bold tracking-[0.2em] shadow-lift">
             {lobby.room}
           </span>
         </div>
-        <button className="btn" onClick={copyInvite}>
-          {copied ? 'link copiado' : 'copiar o link'}
-        </button>
+        <Button onClick={copyInvite}>{copied ? 'link copiado' : 'copiar o link'}</Button>
       </section>
 
-      {lobby.last_winner && <Banner tone="gold">{lobby.last_winner} venceu a última partida e começa a próxima.</Banner>}
+      {lobby.last_winner && <Notice tone="default">{lobby.last_winner} venceu a última partida e começa a próxima.</Notice>}
       {lobby.options.independent_reactions && (
-        <p className="text-sm font-medium text-muted">regra da casa: quem contesta ainda pode bloquear</p>
+        <p className="text-sm font-medium text-muted-foreground">regra da casa: quem contesta ainda pode bloquear</p>
       )}
 
       <ul className="flex flex-col gap-2.5">
         {lobby.players.map((seat) => (
           <li
             key={seat.name}
-            className="flex items-center gap-3 rounded-2xl border-3 border-ink bg-card px-[18px] py-3 text-xl font-bold shadow-lift"
+            className="flex items-center gap-3 rounded-2xl border-3 border-border bg-card px-[18px] py-3 text-xl font-bold shadow-lift"
           >
             {seat.name}
             {(seat.name === lobby.you || seat.name === lobby.host) && (
-              <span className="label">
+              <span className="eyebrow">
                 {[seat.name === lobby.you && 'você', seat.name === lobby.host && 'host'].filter(Boolean).join(' · ')}
               </span>
             )}
             <span className="grow" />
-            <span className={`tag ${seat.ready ? 'bg-ambassador text-white' : ''}`}>{seat.ready ? 'pronto' : 'esperando'}</span>
+            <Badge variant={seat.ready ? 'ready' : 'default'}>{seat.ready ? 'pronto' : 'esperando'}</Badge>
           </li>
         ))}
         {Array.from({ length: freeSeats }, (_, position) => (
@@ -69,24 +68,24 @@ export function Lobby({ lobby, send, refusal }: { lobby: LobbyView; send: Send; 
           {lobby.players.length} / {seatsAtTheTable}
         </span>
         <span className="grow" />
-        <button className="btn" onClick={() => send({ type: 'ready', ready: !me?.ready })}>
+        <Button onClick={() => send({ type: 'ready', ready: !me?.ready })}>
           {me?.ready ? 'ainda não estou pronto' : 'estou pronto'}
-        </button>
+        </Button>
         {hosting && (
-          <button className="btn btn-primary" disabled={!canStart} onClick={() => send({ type: 'start' })}>
+          <Button variant="default" disabled={!canStart} onClick={() => send({ type: 'start' })}>
             começar a partida
-          </button>
+          </Button>
         )}
       </div>
 
-      <p className="text-sm font-medium text-muted">
+      <p className="text-sm font-medium text-muted-foreground">
         {hosting
           ? canStart
             ? 'todo mundo pronto — você é o host, você começa'
             : 'a partida começa quando todos marcarem pronto'
           : `${lobby.host} começa a partida quando todos estiverem prontos…`}
       </p>
-      {refusal && <Banner>{refusal}</Banner>}
+      {refusal && <Notice>{refusal}</Notice>}
     </main>
   )
 }
