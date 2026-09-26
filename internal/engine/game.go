@@ -111,9 +111,10 @@ func (g *Game) Apply(move Move) ([]Event, error) {
 }
 
 type pendingAction struct {
-	rule   Rule
-	by     int
-	target int
+	rule    Rule
+	by      int
+	target  int
+	reacted map[int]bool
 }
 
 func (g *Game) act(a Act) ([]Event, error) {
@@ -157,15 +158,11 @@ func (g *Game) checkAction(a Act) (pendingAction, error) {
 			Message:  "saldo menor que o custo da ação",
 			Received: g.players[by].coins, Expected: rule.Cost}
 	}
-	return pendingAction{rule: rule, by: by, target: target}, nil
+	return pendingAction{rule: rule, by: by, target: target, reacted: map[int]bool{}}, nil
 }
 
 func (g *Game) resolveAction() []Event {
-	declared := g.pending
-	if declared.rule.NeedsTarget && !g.players[declared.target].alive() {
-		return g.proceed(endTurn)
-	}
-	return declared.rule.Effect(g, declared.by, declared.target)
+	return g.pending.rule.Effect(g, g.pending.by, g.pending.target)
 }
 
 func (g *Game) proceed(then followUp) []Event {

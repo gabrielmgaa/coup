@@ -67,6 +67,7 @@ const actionLabels: Record<string, string> = {
   income: 'renda',
   foreign_aid: 'ajuda externa',
   tax: 'taxas',
+  assassinate: 'assassinar',
   coup: 'golpe',
 }
 

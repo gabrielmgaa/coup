@@ -114,6 +114,7 @@ var actionLabels = map[string]string{
 	"income":      "Renda",
 	"foreign_aid": "Ajuda Externa",
 	"tax":         "Taxas",
+	"assassinate": "Assassinar",
 	"coup":        "Golpe de Estado",
 }
 

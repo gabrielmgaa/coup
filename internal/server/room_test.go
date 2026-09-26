@@ -73,7 +73,12 @@ type tab struct {
 
 func startServer(t *testing.T) string {
 	t.Helper()
-	running := httptest.NewServer(New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins))
+	return startServerWithCoins(t, engine.RulebookCoins)
+}
+
+func startServerWithCoins(t *testing.T, startingCoins int) string {
+	t.Helper()
+	running := httptest.NewServer(New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)), startingCoins))
 	t.Cleanup(running.Close)
 	return "ws" + strings.TrimPrefix(running.URL, "http") + "/ws"
 }

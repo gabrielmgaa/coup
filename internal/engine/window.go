@@ -55,6 +55,7 @@ type Option struct {
 type window struct {
 	id        int
 	block     *pendingBlock
+	blockOnly bool
 	pending   map[int]bool
 	responded map[int]bool
 }
@@ -74,13 +75,14 @@ func (g *Game) openActionWindow() []Event {
 	if len(eligible) == 0 {
 		return g.resolveAction()
 	}
-	g.openWindow(eligible, nil)
+	g.openWindow(eligible, window{})
 	return nil
 }
 
-func (g *Game) openWindow(eligible []int, block *pendingBlock) {
+func (g *Game) openWindow(eligible []int, shape window) {
 	g.decision++
-	g.window = &window{id: g.decision, block: block, pending: map[int]bool{}, responded: map[int]bool{}}
+	g.window = &window{id: g.decision, block: shape.block, blockOnly: shape.blockOnly,
+		pending: map[int]bool{}, responded: map[int]bool{}}
 	for _, i := range eligible {
 		g.window.pending[i] = true
 	}
@@ -92,7 +94,7 @@ func (g *Game) reactionsOf(i int) []Option {
 		return []Option{{Answer: Challenge}}
 	}
 	reactions := []Option{}
-	if g.pending.rule.challengeable() {
+	if g.pending.rule.challengeable() && (g.window == nil || !g.window.blockOnly) {
 		reactions = append(reactions, Option{Answer: Challenge})
 	}
 	if g.mayBlock(i) {
@@ -122,6 +124,9 @@ func (g *Game) respond(r Respond) ([]Event, error) {
 	}
 	g.window.responded[responder] = true
 	delete(g.window.pending, responder)
+	if g.window.block == nil {
+		g.pending.reacted[responder] = true
+	}
 	switch r.Answer {
 	case Challenge:
 		return g.challenge(responder), nil
@@ -176,13 +181,23 @@ func (g *Game) block(blocker int, character Character) []Event {
 			eligible = append(eligible, i)
 		}
 	}
-	g.openWindow(eligible, &pendingBlock{by: blocker, character: character})
+	g.openWindow(eligible, window{block: &pendingBlock{by: blocker, character: character}})
 	return []Event{g.narrate("blocked", fmt.Sprintf("%s alegou %s para bloquear %s.",
 		g.players[blocker].name, character.LabelPtBR(), g.players[g.pending.by].name))}
 }
 
 func (g *Game) continueAction() []Event {
-	return g.resolveAction()
+	eligible := []int{}
+	for i := range g.players {
+		if g.players[i].alive() && g.mayBlock(i) && !g.pending.reacted[i] {
+			eligible = append(eligible, i)
+		}
+	}
+	if len(eligible) == 0 {
+		return g.resolveAction()
+	}
+	g.openWindow(eligible, window{blockOnly: true})
+	return nil
 }
 
 func (g *Game) waitingOn() []string {

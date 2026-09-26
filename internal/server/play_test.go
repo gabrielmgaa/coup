@@ -188,3 +188,35 @@ func TestAThirdSeatBlocksForeignAidOverTheWire(t *testing.T) {
 		t.Errorf("the turn stayed with %s after the blocked foreign aid", actor)
 	}
 }
+
+func TestTheTargetBlocksAnAssassinationOverTheWireAndTheCoinsStaySpent(t *testing.T) {
+	url := startServerWithCoins(t, 5)
+	playing := seatTable(t, url, "tester1", "tester2", "tester3")
+	actor := playing.onTurn()
+	target := playing.someoneElse(actor)
+
+	playing.play(actor, protocol.FromClient{Type: "play", Action: "assassinate", Target: target})
+	if coins := playing.player(actor).Coins; coins != 2 {
+		t.Fatalf("%s holds %d coins during the window, expected 2", actor, coins)
+	}
+	bystander := ""
+	for name := range playing.seats {
+		if name != actor && name != target {
+			bystander = name
+		}
+	}
+	refused := playing.refused(bystander, protocol.FromClient{Type: "respond",
+		Window: playing.views[bystander].Window.ID, Answer: "block", Character: "contessa"})
+	if refused.Code != "illegal_action" {
+		t.Errorf("a bystander blocking answered %q, expected illegal_action", refused.Code)
+	}
+	playing.play(target, protocol.FromClient{Type: "respond", Window: playing.views[target].Window.ID,
+		Answer: "block", Character: "contessa"})
+	for _, name := range playing.views[actor].Window.WaitingOn {
+		playing.respond(name, "pass")
+	}
+
+	if coins, hidden := playing.player(actor).Coins, playing.player(target).Hidden; coins != 2 || hidden != 2 {
+		t.Errorf("%s has %d coins and %s %d cards, expected 2 and 2", actor, coins, target, hidden)
+	}
+}

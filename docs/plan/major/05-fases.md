@@ -162,7 +162,7 @@ uma reação ao bloqueio, não à ação, e a invariante "uma reação por açã
 
 ---
 
-## 0.6 — Assassinar
+## 0.6 — Assassinar — **pronta**
 
 Onde as três regras mais traiçoeiras se encontram.
 
@@ -175,6 +175,14 @@ bloqueia"; a **reabertura só-bloqueio** do galho C1; o perigo duplo do galho B3
 
 **Pronto quando:** os oito galhos da árvore de [`01-regras.md`](01-regras.md) estão cobertos
 por teste nomeado, cada um afirmando o saldo de moedas e a contagem de influências por número.
+✅ `TestBranchA…`, `TestBranchB1…` a `TestBranchD2…` em `assassinate_test.go`, mais o C1 com o
+bloqueio reaberto sendo contestável. O C1 nos dois modos de `IndependentReactions` fica para a
+0.9, quando a opção nasce.
+
+**Decisão tomada na execução:** **passar também gasta a reação.** Quem deixou passar na janela
+combinada não é perguntado de novo se a ação sobreviver a uma contestação de outra pessoa —
+passar é a decisão "não vou bloquear". Com `IndependentReactions` isso é ignorado, como o resto
+de `reacted`.
 
 ---
 

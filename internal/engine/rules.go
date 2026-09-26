@@ -10,6 +10,7 @@ const (
 	ForeignAid
 	Coup
 	Tax
+	Assassinate
 )
 
 type Rule struct {
@@ -24,7 +25,7 @@ type Rule struct {
 
 func (r Rule) challengeable() bool { return r.Claims != NoCharacter }
 
-var actionOrderForDeterministicView = []ActionType{Income, ForeignAid, Tax, Coup}
+var actionOrderForDeterministicView = []ActionType{Income, ForeignAid, Tax, Assassinate, Coup}
 
 var rules = map[ActionType]Rule{
 	Income: {
@@ -43,6 +44,15 @@ var rules = map[ActionType]Rule{
 		Claims:      Duke,
 		Declaration: "%[1]s alegou Duque para cobrar Taxas.",
 		Effect:      gainCoins(3),
+	},
+	Assassinate: {
+		Name:        "assassinate",
+		Cost:        3,
+		Claims:      Assassin,
+		NeedsTarget: true,
+		BlockedBy:   []Character{Contessa},
+		Declaration: "%[1]s pagou 3 e alegou Assassino contra %[2]s.",
+		Effect:      targetLosesInfluence,
 	},
 	Coup: {
 		Name:        "coup",
