@@ -210,7 +210,7 @@ está depurando.
 | `not_all_ready` | `start` com gente sem marcar pronto; `received` traz quem falta | **0.2** |
 | `not_enough_players` | `start` com menos de 2 | **0.2** |
 | `too_many_players` | o motor recusou mais de 6 nomes | **0.2** |
-| `window_closed` | respondeu a uma janela que já resolveu | **0.4** |
+| `window_closed` | respondeu a uma janela que não está aberta | **0.4** |
 | `already_responded` | segunda resposta na mesma janela | **0.4** |
 | `invalid_token` | reconexão com token desconhecido | **0.8** |
 | `seat_taken` | outra conexão entrou com o token deste assento; esta é fechada em seguida | **pós-0.9** |

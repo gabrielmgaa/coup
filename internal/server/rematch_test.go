@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"math/rand/v2"
 	"testing"
 
@@ -102,6 +103,44 @@ func TestWhoeverDroppedDuringTheGameIsNotInTheNextLobby(t *testing.T) {
 	if room.winner == "" {
 		t.Error("the room forgot who won")
 	}
+}
+
+func TestAWinnerWhoLeftIsNotAnnouncedInTheNextLobby(t *testing.T) {
+	room := newRoom(rand.New(rand.NewPCG(1, 2)), calmConfig(14), "K7QM", func(string) {})
+	connections := map[string]*connection{}
+	for _, name := range []string{"tester1", "tester2", "tester3"} {
+		connections[name] = &connection{outbox: make(chan []byte, 4096)}
+		room.handle(command{from: connections[name], message: protocol.FromClient{Type: "join", Name: name}})
+		room.handle(command{from: connections[name], message: protocol.FromClient{Type: "ready", Ready: true}})
+	}
+	room.handle(command{from: connections["tester1"], message: protocol.FromClient{Type: "start"}})
+	room.handle(command{from: connections["tester2"], message: protocol.FromClient{Type: "leave"}})
+	for steps := 0; room.game != nil; steps++ {
+		if steps > 500 {
+			t.Fatal("the game did not end within 500 steps")
+		}
+		playOneSafeStep(t, room)
+	}
+	if seated := room.names(); contains(seated, "tester2") {
+		t.Fatalf("the lobby holds %v, expected tester2 gone — the scenario needs the winner to have left", seated)
+	}
+
+	announced := lastLobbyIn(t, connections["tester1"]).LastWinner
+	if announced != "" {
+		t.Errorf("the lobby announces %q as the last winner, expected nobody — that seat is gone", announced)
+	}
+}
+
+func lastLobbyIn(t *testing.T, c *connection) protocol.LobbyView {
+	t.Helper()
+	var latest protocol.LobbyView
+	for len(c.outbox) > 0 {
+		var arrived protocol.Lobby
+		if json.Unmarshal(<-c.outbox, &arrived) == nil && arrived.Type == "lobby" {
+			latest = arrived.State
+		}
+	}
+	return latest
 }
 
 func playOneSafeStep(t *testing.T, room *Room) {

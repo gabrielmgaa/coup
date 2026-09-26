@@ -142,7 +142,7 @@ func (g *Game) checkResponse(r Respond) (int, error) {
 			Received: "respond", Expected: g.phase.String()}
 	}
 	if r.Window != g.window.id {
-		return nobody, &Refusal{Code: "window_closed", Message: fmt.Sprintf("a janela %d já fechou", r.Window),
+		return nobody, &Refusal{Code: "window_closed", Message: fmt.Sprintf("a janela %d não está aberta", r.Window),
 			Received: r.Window, Expected: g.window.id}
 	}
 	responder := g.indexOf(r.By)

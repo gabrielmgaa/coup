@@ -201,6 +201,21 @@ func TestTheClaimantAnsweringTheirOwnClaimIsToldWhoIsAwaited(t *testing.T) {
 	}
 }
 
+func TestAnswerToAWindowThatNeverOpenedSaysItIsNotOpen(t *testing.T) {
+	game := threePlayerGame(Captain, Contessa, Duke, Ambassador, Assassin, Captain)
+	apply(t, game, Act{By: "tester1", Action: Tax})
+	current := openWindowID(t, game)
+
+	_, err := game.Apply(Respond{By: "tester2", Window: 99, Answer: Pass})
+	refusal := refusalFrom(t, err)
+	if refusal.Message != "a janela 99 não está aberta" {
+		t.Errorf("the refusal reads %q, expected \"a janela 99 não está aberta\"", refusal.Message)
+	}
+	if refusal.Received != 99 || refusal.Expected != current {
+		t.Errorf("refusal says received %v expected %v, wanted 99 and %d", refusal.Received, refusal.Expected, current)
+	}
+}
+
 func TestSomeoneOutsideTheGameCannotAnswer(t *testing.T) {
 	game := threePlayerGame(Captain, Contessa, Duke, Ambassador, Assassin, Captain)
 	apply(t, game, Act{By: "tester1", Action: Tax})

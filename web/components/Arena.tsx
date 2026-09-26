@@ -126,7 +126,7 @@ function Story({ game, latest }: { game: GameState; latest?: GameEvent }) {
       <div className="flex min-w-0 flex-col gap-2.5">
         <span className="eyebrow">{headline ? 'agora' : 'a última jogada'}</span>
         <p className="text-[clamp(22px,3vw,36px)] leading-[1.15] font-bold text-pretty">
-          {headline ?? (latest ? <Narration text={latest.text} /> : 'A partida começou.')}
+          {headline ?? (latest ? <Narration text={latest.text} /> : 'Partida em andamento.')}
         </p>
       </div>
     </section>

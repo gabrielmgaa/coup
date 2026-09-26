@@ -65,6 +65,8 @@ runtime estaciona a goroutine.
   quem segura a mesa nesse caso é o prazo da decisão. Medido no Chromium 151 e no Brave 154: sem
   ping, o buffer do sistema absorve de 787 a 2643 mensagens antes de a escrita travar, então o
   prazo de escrita sozinho quase nunca dispararia — é o ping que detecta, em até 25 s.
+- **O motivo do fechamento é o da recusa.** `drop` guarda o código (`name_taken`,
+  `seat_taken`…) e a escritora fecha com ele; fila cheia fecha com `client too far behind`.
 - **Timer é só mais um `command`.** `time.AfterFunc` entrega um `expiry` no inbox, com o ID de
   quem o armou. Chegando velho — decisão que já mudou, pausa que já acabou, sala que voltou a
   ter gente — é jogado fora. `expiry` não tem representação JSON: cliente nenhum consegue forjar.

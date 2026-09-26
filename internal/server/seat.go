@@ -21,16 +21,18 @@ type seat struct {
 func (s *seat) connected() bool { return s.conn != nil }
 
 type connection struct {
-	outbox chan []byte
-	closed bool
-	seat   *seat
+	outbox      chan []byte
+	closed      bool
+	closeReason string
+	seat        *seat
 }
 
-func (c *connection) drop() {
+func (c *connection) drop(reason string) {
 	if c.closed {
 		return
 	}
 	c.closed = true
+	c.closeReason = reason
 	close(c.outbox)
 }
 
@@ -84,7 +86,7 @@ func (r *Room) reconnect(c *connection, token string) {
 }
 
 func (r *Room) disconnect(c *connection) {
-	c.drop()
+	c.drop("")
 	c.seat.conn = nil
 	if r.game == nil {
 		r.removeSeat(c.seat)
@@ -111,6 +113,9 @@ func (r *Room) removeSeat(target *seat) {
 		}
 	}
 	r.seats = remaining
+	if target.name == r.winner {
+		r.winner = ""
+	}
 }
 
 func (r *Room) nameTaken(name string) bool {

@@ -25,6 +25,9 @@ type Model struct {
 	offered   []choice
 	closesAt  time.Time
 	resumesAt time.Time
+	ended     *protocol.GameState
+	height    int
+	width     int
 	lost      error
 	now       func() time.Time
 }
@@ -45,11 +48,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.press(arrived.String())
 	case tickArrived:
 		return m, tick()
+	case tea.WindowSizeMsg:
+		m.height, m.width = arrived.Height, arrived.Width
+		return m, nil
 	case welcomeArrived:
 		return m, tea.Batch(m.remember(arrived.room, arrived.token), m.receive)
 	case lobbyArrived:
-		m.lobby, m.game, m.log, m.refusal = &arrived.state, nil, nil, ""
-		return m.settle(), m.receive
+		return m.enterLobby(arrived.state), m.receive
 	case updateArrived:
 		return m.applyUpdate(arrived), m.receive
 	case refusalArrived:
@@ -65,7 +70,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) enterLobby(lobby protocol.LobbyView) Model {
+	if m.game != nil && m.game.Winner != "" {
+		m.ended = m.game
+	}
+	if m.ended == nil {
+		m.log = nil
+	}
+	m.lobby, m.game, m.refusal = &lobby, nil, ""
+	return m.settle()
+}
+
 func (m Model) applyUpdate(arrived updateArrived) Model {
+	if m.ended != nil {
+		m.ended, m.log = nil, nil
+	}
 	m.game, m.refusal = &arrived.state, ""
 	m.closesAt = m.now().Add(time.Duration(arrived.state.ClosesInMs) * time.Millisecond)
 	if arrived.state.Paused != nil {

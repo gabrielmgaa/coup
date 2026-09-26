@@ -236,7 +236,7 @@ func write(ctx context.Context, conn *websocket.Conn, c *connection, patience ti
 			return
 		}
 	}
-	conn.Close(websocket.StatusPolicyViolation, "client too far behind")
+	conn.Close(websocket.StatusPolicyViolation, c.closeReason)
 }
 
 func writeWithin(ctx context.Context, conn *websocket.Conn, encoded []byte, patience time.Duration) error {

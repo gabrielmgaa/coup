@@ -1,6 +1,13 @@
 package server
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/coder/websocket"
+)
 
 func TestTheTabThatLosesItsSeatIsToldWhy(t *testing.T) {
 	url := startServer(t)
@@ -26,5 +33,20 @@ func TestANameThatDiffersOnlyInCaseIsTaken(t *testing.T) {
 	enterTable(t, url, host.room, "tester2")
 	if seated := host.waitForSeats(2).names(); len(seated) != 2 || seated[1] != "tester2" {
 		t.Errorf("the lobby holds %v, expected tester1 and tester2 — TESTER1 must not have sat", seated)
+	}
+}
+
+func TestARefusedJoinClosesWithTheRefusalAsTheReason(t *testing.T) {
+	url := startServer(t)
+	host := createTable(t, url, "tester1")
+
+	twin := enterTable(t, url, host.room, "tester1")
+	twin.waitFor("error")
+	ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+	defer stop()
+	_, _, err := twin.conn.Read(ctx)
+	var closed websocket.CloseError
+	if !errors.As(err, &closed) || closed.Reason != "name_taken" {
+		t.Errorf("the refused socket closed with %v, expected the reason name_taken", err)
 	}
 }

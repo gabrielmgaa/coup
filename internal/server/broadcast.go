@@ -56,7 +56,7 @@ func (r *Room) lobbyFor(seated *seat) protocol.LobbyView {
 
 func (r *Room) turnAway(c *connection, reason *engine.Refusal) {
 	r.send(c, protocol.NewRefusal(reason))
-	c.drop()
+	c.drop(reason.Code)
 }
 
 func (r *Room) refuse(c *connection, reason error) {
@@ -79,6 +79,6 @@ func (r *Room) send(c *connection, message any) {
 	select {
 	case c.outbox <- encoded:
 	default:
-		c.drop()
+		c.drop("client too far behind")
 	}
 }

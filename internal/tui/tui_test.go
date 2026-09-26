@@ -439,7 +439,8 @@ func TestAPausedTableShowsWhoItWaitsFor(t *testing.T) {
 
 func TestTheCountdownIsDrawnFromTheSnapshot(t *testing.T) {
 	model := NewModel(nil, nil, nil)
-	state := protocol.GameState{View: engine.View{You: "tester1", TurnOf: "tester1"}, ClosesInMs: 25000}
+	state := protocol.GameState{View: engine.View{You: "tester1", TurnOf: "tester1",
+		YourActions: []engine.AvailableAction{{Name: "income"}}}, ClosesInMs: 25000}
 	updated, _ := model.Update(updateArrived{state: state})
 	if screen := updated.View(); !strings.Contains(screen, "s para decidir") {
 		t.Errorf("the screen has no countdown:\n%s", screen)

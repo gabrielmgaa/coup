@@ -81,7 +81,7 @@ func (r *Room) admit(received command) {
 	case "reconnect":
 		r.reconnect(received.from, received.message.Token)
 	default:
-		received.from.drop()
+		received.from.drop("")
 	}
 }
 
