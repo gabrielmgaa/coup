@@ -3,13 +3,16 @@ package protocol
 import "github.com/gabrielmgaa/coup/internal/engine"
 
 type FromClient struct {
-	Type   string `json:"type"`
-	Room   string `json:"room,omitempty"`
-	Name   string `json:"name,omitempty"`
-	Action string `json:"action,omitempty"`
-	Target string `json:"target,omitempty"`
-	Card   string `json:"card,omitempty"`
-	Ready  bool   `json:"ready,omitempty"`
+	Type      string `json:"type"`
+	Room      string `json:"room,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Action    string `json:"action,omitempty"`
+	Target    string `json:"target,omitempty"`
+	Card      string `json:"card,omitempty"`
+	Ready     bool   `json:"ready,omitempty"`
+	Window    int    `json:"window,omitempty"`
+	Answer    string `json:"answer,omitempty"`
+	Character string `json:"character,omitempty"`
 }
 
 type SeatView struct {
@@ -71,8 +74,26 @@ func ToMove(message FromClient, by string) (engine.Move, error) {
 				Received: message.Card, Expected: engine.CharacterNames()}
 		}
 		return engine.LoseInfluence{By: by, Card: card}, nil
+	case "respond":
+		return toResponse(message, by)
 	}
 	return nil, &engine.Refusal{Code: "illegal_action", Message: "mensagem que a sala não entende",
 		Received: message.Type,
-		Expected: []string{"create_room", "join", "ready", "start", "play", "lose_influence", "leave"}}
+		Expected: []string{"create_room", "join", "ready", "start", "play", "respond", "lose_influence", "leave"}}
+}
+
+func toResponse(message FromClient, by string) (engine.Move, error) {
+	answer, known := engine.AnswerByName(message.Answer)
+	if !known {
+		return nil, &engine.Refusal{Code: "illegal_action", Message: "resposta que não existe",
+			Received: message.Answer, Expected: []string{"challenge", "block", "pass"}}
+	}
+	character := engine.NoCharacter
+	if message.Character != "" {
+		if character, known = engine.CharacterByName(message.Character); !known {
+			return nil, &engine.Refusal{Code: "illegal_action", Message: "personagem que não existe",
+				Received: message.Character, Expected: engine.CharacterNames()}
+		}
+	}
+	return engine.Respond{By: by, Window: message.Window, Answer: answer, Character: character}, nil
 }

@@ -30,7 +30,7 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 | `create_room` | `name`, `options?` | Sem sala ainda. O código volta no primeiro `lobby` | **0.2** (sem `options` até a 0.9) |
 | `ready` | `ready: bool` | Só no lobby | **0.2** |
 | `start` | — | Só o host, só com todos prontos e ≥2 jogadores | **0.2** |
-| `respond` | `window`, `answer`, `character?` | `answer` ∈ `challenge` / `block` / `pass` | 0.4 |
+| `respond` | `window`, `answer`, `character?` | `answer` ∈ `challenge` / `block` / `pass` | **0.4** |
 | `return_cards` | `cards: [duas]` | Após Trocar (Embaixador) | 0.7 |
 | `reconnect` | `token` | Retomar a sessão de antes | 0.8 |
 
@@ -88,8 +88,8 @@ gasta ~84 KB. Mandar tudo a cada ação é irrelevante.
       "id": 42,
       "action": { "name": "assassinate", "by": "tester2", "target": "tester3", "claims": "assassin" },
       "block": null,
-      "your_options": ["challenge", "block_with_contessa", "pass"],
-      "already_responded": ["tester4"],
+      "your_options": [{ "answer": "challenge" }, { "answer": "block", "character": "contessa" }, { "answer": "pass" }],
+      "waiting_on": ["tester3", "tester5"],
       "closes_in_ms": 25000
     },
     "your_actions": null
@@ -210,8 +210,8 @@ está depurando.
 | `not_all_ready` | `start` com gente sem marcar pronto; `received` traz quem falta | **0.2** |
 | `not_enough_players` | `start` com menos de 2 | **0.2** |
 | `too_many_players` | o motor recusou mais de 6 nomes | **0.2** |
-| `window_closed` | respondeu a uma janela que já resolveu | 0.4 |
-| `already_responded` | segunda resposta na mesma janela | 0.4 |
+| `window_closed` | respondeu a uma janela que já resolveu | **0.4** |
+| `already_responded` | segunda resposta na mesma janela | **0.4** |
 | `invalid_token` | reconexão com token desconhecido | 0.8 |
 
 Um erro é sempre resposta a **uma** mensagem daquele cliente, e nunca é difundido.

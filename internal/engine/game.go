@@ -9,17 +9,27 @@ type Phase uint8
 
 const (
 	AwaitingAction Phase = iota
+	AwaitingResponse
 	AwaitingInfluenceLoss
 	Finished
 )
 
 var phaseName = map[Phase]string{
 	AwaitingAction:        "awaiting_action",
+	AwaitingResponse:      "awaiting_response",
 	AwaitingInfluenceLoss: "awaiting_influence_loss",
 	Finished:              "finished",
 }
 
 func (p Phase) String() string { return phaseName[p] }
+
+type followUp uint8
+
+const (
+	endTurn followUp = iota
+	continueAction
+	resolveAction
+)
 
 const (
 	startingInfluences = 2
@@ -44,9 +54,14 @@ func (p *player) alive() bool { return len(p.hand) > 0 }
 type Game struct {
 	players       []player
 	deck          []Character
+	rng           *rand.Rand
 	phase         Phase
 	turn          int
+	pending       *pendingAction
+	window        *window
 	losing        int
+	afterLoss     followUp
+	decision      int
 	winner        string
 	eventsEmitted int
 }
@@ -59,6 +74,7 @@ func NewGame(names []string, rng *rand.Rand, initialCoins int) (*Game, error) {
 	deck := baseDeck()
 	shuffle(deck, rng)
 	game := newGameWithDeck(names, deck)
+	game.rng = rng
 	if initialCoins != RulebookCoins {
 		for i := range game.players {
 			game.players[i].coins = initialCoins
@@ -73,7 +89,7 @@ func newGameWithDeck(names []string, deck []Character) *Game {
 	if len(names) == 2 {
 		coins = startingCoinsDuel
 	}
-	game := &Game{deck: deck, losing: nobody}
+	game := &Game{deck: deck, rng: rand.New(rand.NewPCG(1, 2)), losing: nobody}
 	for _, name := range names {
 		hand := append([]Character(nil), game.deck[:startingInfluences]...)
 		game.deck = game.deck[startingInfluences:]
@@ -86,16 +102,18 @@ func (g *Game) Apply(move Move) ([]Event, error) {
 	switch chosen := move.(type) {
 	case Act:
 		return g.act(chosen)
+	case Respond:
+		return g.respond(chosen)
 	case LoseInfluence:
 		return g.loseInfluence(chosen)
 	}
 	return nil, &Refusal{Code: "illegal_action", Message: "jogada desconhecida"}
 }
 
-type declaredAction struct {
+type pendingAction struct {
+	rule   Rule
 	by     int
 	target int
-	rule   Rule
 }
 
 func (g *Game) act(a Act) ([]Event, error) {
@@ -104,53 +122,71 @@ func (g *Game) act(a Act) ([]Event, error) {
 		return nil, err
 	}
 	g.players[declared.by].coins -= declared.rule.Cost
-	events := []Event{g.narrate("action_declared",
-		g.actionTextPtBR(declared.rule, declared.by, declared.target))}
-	events = append(events, declared.rule.Effect(g, declared.by, declared.target)...)
-	return append(events, g.closeTurn()...), nil
+	g.pending = &declared
+	events := []Event{g.narrate("action_declared", g.declarationPtBR(declared))}
+	return append(events, g.openActionWindow()...), nil
 }
 
-func (g *Game) checkAction(a Act) (declaredAction, error) {
+func (g *Game) checkAction(a Act) (pendingAction, error) {
 	if g.phase != AwaitingAction {
-		return declaredAction{}, &Refusal{Code: "illegal_action", Message: "não é hora de agir",
+		return pendingAction{}, &Refusal{Code: "illegal_action", Message: "não é hora de agir",
 			Received: "act", Expected: g.phase.String()}
 	}
 	by, err := g.indexOnTurn(a.By)
 	if err != nil {
-		return declaredAction{}, err
+		return pendingAction{}, err
 	}
 	rule, known := rules[a.Action]
 	if !known {
-		return declaredAction{}, &Refusal{Code: "illegal_action", Message: "ação que não existe",
+		return pendingAction{}, &Refusal{Code: "illegal_action", Message: "ação que não existe",
 			Received: int(a.Action), Expected: ActionNames()}
 	}
 	if g.players[by].coins >= coinsForcingCoup && a.Action != Coup {
-		return declaredAction{}, &Refusal{Code: "coup_required",
+		return pendingAction{}, &Refusal{Code: "coup_required",
 			Message:  "com 10 moedas ou mais o turno inteiro é um Golpe",
 			Received: rule.Name, Expected: "coup"}
 	}
 	target := nobody
 	if rule.NeedsTarget {
 		if target, err = g.indexOfLivingTarget(by, a.Target); err != nil {
-			return declaredAction{}, err
+			return pendingAction{}, err
 		}
 	}
 	if g.players[by].coins < rule.Cost {
-		return declaredAction{}, &Refusal{Code: "insufficient_coins",
+		return pendingAction{}, &Refusal{Code: "insufficient_coins",
 			Message:  "saldo menor que o custo da ação",
 			Received: g.players[by].coins, Expected: rule.Cost}
 	}
-	return declaredAction{by: by, target: target, rule: rule}, nil
+	return pendingAction{rule: rule, by: by, target: target}, nil
 }
 
-func (g *Game) closeTurn() []Event {
-	if g.phase == AwaitingInfluenceLoss {
-		return nil
+func (g *Game) resolveAction() []Event {
+	declared := g.pending
+	if declared.rule.NeedsTarget && !g.players[declared.target].alive() {
+		return g.proceed(endTurn)
 	}
+	return declared.rule.Effect(g, declared.by, declared.target)
+}
+
+func (g *Game) proceed(then followUp) []Event {
 	if events, over := g.checkGameOver(); over {
 		return events
 	}
+	switch then {
+	case continueAction:
+		return g.continueAction()
+	case resolveAction:
+		return g.resolveAction()
+	}
+	return g.closeTurn()
+}
+
+func (g *Game) closeTurn() []Event {
+	g.pending = nil
+	g.window = nil
+	g.phase = AwaitingAction
 	g.passTurn()
+	g.decision++
 	return []Event{g.narrate("turn_passed", fmt.Sprintf("Agora é a vez de %s.", g.players[g.turn].name))}
 }
 
@@ -200,10 +236,10 @@ func (g *Game) validTargetNames(by int) []string {
 	return names
 }
 
-func (g *Game) actionTextPtBR(rule Rule, by, target int) string {
-	if rule.NeedsTarget {
-		return fmt.Sprintf("%s pagou %d e deu um Golpe de Estado em %s.",
-			g.players[by].name, rule.Cost, g.players[target].name)
+func (g *Game) declarationPtBR(declared pendingAction) string {
+	target := ""
+	if declared.target != nobody {
+		target = g.players[declared.target].name
 	}
-	return fmt.Sprintf("%s pegou Renda.", g.players[by].name)
+	return fmt.Sprintf(declared.rule.Declaration, g.players[declared.by].name, target)
 }

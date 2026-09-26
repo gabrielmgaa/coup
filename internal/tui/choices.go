@@ -33,6 +33,9 @@ func gameChoices(state engine.View) []choice {
 	if state.Losing == state.You {
 		return revealChoices(state)
 	}
+	if state.Window != nil {
+		return responseChoices(*state.Window)
+	}
 	choices := []choice{}
 	for _, action := range state.YourActions {
 		choices = append(choices, actionChoices(action)...)
@@ -49,6 +52,28 @@ func revealChoices(state engine.View) []choice {
 		})
 	}
 	return choices
+}
+
+func responseChoices(window engine.WindowView) []choice {
+	choices := make([]choice, 0, len(window.YourOptions))
+	for _, option := range window.YourOptions {
+		choices = append(choices, choice{
+			label: optionLabel(window, option),
+			message: protocol.FromClient{Type: "respond", Window: window.ID,
+				Answer: option.Answer.String(), Character: option.Character.String()},
+		})
+	}
+	return choices
+}
+
+func optionLabel(window engine.WindowView, option engine.Option) string {
+	switch option.Answer {
+	case engine.Challenge:
+		return fmt.Sprintf("contestar o %s de %s", window.Action.Claims.LabelPtBR(), window.Action.By)
+	case engine.Block:
+		return "bloquear com " + option.Character.LabelPtBR()
+	}
+	return "deixar passar"
 }
 
 func actionChoices(action engine.AvailableAction) []choice {
@@ -84,6 +109,7 @@ func myCards(state engine.View) []engine.Character {
 
 var actionLabels = map[string]string{
 	"income": "Renda",
+	"tax":    "Taxas",
 	"coup":   "Golpe de Estado",
 }
 

@@ -13,6 +13,15 @@ export type AvailableAction = {
   targets?: string[]
 }
 
+export type Option = { answer: 'challenge' | 'block' | 'pass'; character?: string }
+
+export type WindowView = {
+  id: number
+  action: { name: string; by: string; target?: string; claims?: string }
+  your_options: Option[]
+  waiting_on: string[]
+}
+
 export type View = {
   phase: string
   you: string
@@ -21,6 +30,7 @@ export type View = {
   winner?: string
   deck_remaining: number
   players: PlayerView[]
+  window: WindowView | null
   your_actions: AvailableAction[]
 }
 
@@ -50,9 +60,11 @@ export type FromClient =
   | { type: 'start' }
   | { type: 'play'; action: string; target?: string }
   | { type: 'lose_influence'; card: string }
+  | { type: 'respond'; window: number; answer: Option['answer']; character?: string }
 
 const actionLabels: Record<string, string> = {
   income: 'renda',
+  tax: 'taxas',
   coup: 'golpe',
 }
 
@@ -70,6 +82,12 @@ export function actionLabel(name: string): string {
 
 export function cardLabel(name: string): string {
   return cardLabels[name] ?? name
+}
+
+export function optionLabel(window: WindowView, option: Option): string {
+  if (option.answer === 'challenge') return `contestar o ${cardLabel(window.action.claims ?? '')} de ${window.action.by}`
+  if (option.answer === 'block') return `bloquear com ${cardLabel(option.character ?? '')}`
+  return 'deixar passar'
 }
 
 export function roomAddress(): string {

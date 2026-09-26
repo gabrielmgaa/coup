@@ -8,7 +8,22 @@ type View struct {
 	Winner        string            `json:"winner,omitempty"`
 	DeckRemaining int               `json:"deck_remaining"`
 	Players       []PlayerView      `json:"players"`
+	Window        *WindowView       `json:"window"`
 	YourActions   []AvailableAction `json:"your_actions"`
+}
+
+type WindowView struct {
+	ID          int        `json:"id"`
+	Action      ActionView `json:"action"`
+	YourOptions []Option   `json:"your_options"`
+	WaitingOn   []string   `json:"waiting_on"`
+}
+
+type ActionView struct {
+	Name   string    `json:"name"`
+	By     string    `json:"by"`
+	Target string    `json:"target,omitempty"`
+	Claims Character `json:"claims,omitempty"`
 }
 
 type PlayerView struct {
@@ -41,6 +56,7 @@ func ViewFor(g *Game, name string) View {
 		snapshot.Losing = g.players[g.losing].name
 	}
 	snapshot.Players = g.playersAsSeenBy(name)
+	snapshot.Window = g.windowAsSeenBy(name)
 	if g.phase == AwaitingAction && g.players[g.turn].name == name {
 		snapshot.YourActions = g.actionsFor(g.turn)
 	}
@@ -64,6 +80,22 @@ func (g *Game) playersAsSeenBy(name string) []PlayerView {
 		seen = append(seen, visible)
 	}
 	return seen
+}
+
+func (g *Game) windowAsSeenBy(name string) *WindowView {
+	if g.window == nil {
+		return nil
+	}
+	declared := ActionView{Name: g.pending.rule.Name, By: g.players[g.pending.by].name, Claims: g.pending.rule.Claims}
+	if g.pending.target != nobody {
+		declared.Target = g.players[g.pending.target].name
+	}
+	return &WindowView{
+		ID:          g.window.id,
+		Action:      declared,
+		YourOptions: append([]Option{}, g.optionsFor(g.indexOf(name))...),
+		WaitingOn:   g.waitingOn(),
+	}
 }
 
 func (g *Game) actionsFor(by int) []AvailableAction {

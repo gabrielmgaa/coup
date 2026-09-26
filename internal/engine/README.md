@@ -12,9 +12,11 @@ nenhum deles.
 | | |
 |---|---|
 | `game.go` | `Game`, `NewGame`, `Phase`, `Apply`, `MaxPlayers` — o type switch e o pipeline de uma ação |
-| `move.go` | a união selada de entradas: `Act`, `LoseInfluence` |
-| `rules.go` | `Rule` e a tabela `rules`: uma linha por ação, com `Cost`, `NeedsTarget`, `Effect` |
-| `influence.go` | perder carta, escolher qual, eliminação, condição de vitória |
+| `move.go` | a união selada de entradas: `Act`, `Respond`, `LoseInfluence` |
+| `rules.go` | `Rule` e a tabela `rules`: uma linha por ação, com `Cost`, `Claims`, `NeedsTarget`, `Declaration`, `Effect` |
+| `window.go` | a janela de reação: `Answer`, `Option`, quem é elegível, `respond`, first-responder, fechamento quando todos passam |
+| `challenge.go` | contestação nas duas direções, troca da carta provada, devolução do custo |
+| `influence.go` | perder carta (escolha ou automática), o que vem depois (`followUp`), eliminação, vitória |
 | `deck.go` | `Character`, as 15 cartas, embaralhar |
 | `event.go` | `Event` e `narrate`: `n` sequencial + o texto pt-BR que o jogador lê |
 | `refusal.go` | `Refusal`: `code`, `message`, e sempre o `received` **e** o `expected` |
@@ -37,6 +39,24 @@ nenhum deles.
   jogador leva 2: no oitavo, distribuir estoura o slice. `NewGame` devolve `too_many_players`
   em vez de panicar, porque a sala não é a única que chama — a CLI da 0.3 e os bots chamam
   direto. `internal/server` lê a mesma constante, então o teto muda num lugar só.
+
+## O pipeline de uma ação
+
+`act` cobra o custo e declara; `openActionWindow` abre a janela para quem pode reagir, ou resolve
+direto se ninguém pode (Renda, Golpe). Cada caminho termina em `proceed(followUp)`, que antes de
+tudo confere se a partida acabou:
+
+- `endTurn` — passa a vez;
+- `continueAction` — a ação sobreviveu a uma contestação e segue;
+- `resolveAction` — aplica o `Effect` da linha da tabela.
+
+Perder influência pode pedir escolha do jogador; por isso `loseInfluenceThen` guarda o
+`followUp` em `afterLoss`, e `loseInfluence` retoma dali. **Cada `Effect` termina o próprio
+turno** — ou abrindo uma perda de influência, ou chamando `proceed(endTurn)`.
+
+`decision` conta cada coisa nova que o jogo passa a esperar (turno, janela, perda de carta). O
+`ID` da janela é o `decision` do momento em que ela abriu, e é assim que uma resposta atrasada é
+reconhecida (`window_closed`).
 
 ## O que não entra aqui
 

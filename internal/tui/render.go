@@ -110,10 +110,20 @@ func renderStatus(state engine.View) string {
 		return "você perdeu uma influência — qual carta revela?"
 	case state.Losing != "":
 		return state.Losing + " está escolhendo qual carta perder…"
+	case state.Window != nil:
+		return renderWindow(*state.Window)
 	case state.TurnOf == state.You:
 		return "sua vez"
 	}
 	return "é a vez de " + state.TurnOf + "…"
+}
+
+func renderWindow(window engine.WindowView) string {
+	declared := fmt.Sprintf("%s declarou %s", window.Action.By, actionLabel(window.Action.Name))
+	if window.Action.Target != "" {
+		declared += " em " + window.Action.Target
+	}
+	return declared + " — esperando " + strings.Join(window.WaitingOn, ", ")
 }
 
 func renderLog(events []engine.Event) string {

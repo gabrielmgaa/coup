@@ -1,0 +1,156 @@
+package engine
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type Answer uint8
+
+const (
+	NoAnswer Answer = iota
+	Challenge
+	Block
+	Pass
+)
+
+var answerName = map[Answer]string{
+	Challenge: "challenge",
+	Block:     "block",
+	Pass:      "pass",
+}
+
+func (a Answer) String() string { return answerName[a] }
+
+func (a Answer) MarshalJSON() ([]byte, error) { return json.Marshal(a.String()) }
+
+func (a *Answer) UnmarshalJSON(encoded []byte) error {
+	var written string
+	if err := json.Unmarshal(encoded, &written); err != nil {
+		return err
+	}
+	answer, known := AnswerByName(written)
+	if !known {
+		return &Refusal{Code: "illegal_action", Message: "resposta que não existe",
+			Received: written, Expected: []string{"challenge", "block", "pass"}}
+	}
+	*a = answer
+	return nil
+}
+
+func AnswerByName(name string) (Answer, bool) {
+	for answer, written := range answerName {
+		if written == name {
+			return answer, true
+		}
+	}
+	return NoAnswer, false
+}
+
+type Option struct {
+	Answer    Answer    `json:"answer"`
+	Character Character `json:"character,omitempty"`
+}
+
+type window struct {
+	id        int
+	pending   map[int]bool
+	responded map[int]bool
+}
+
+func (g *Game) openActionWindow() []Event {
+	eligible := []int{}
+	for i := range g.players {
+		if i != g.pending.by && g.players[i].alive() && len(g.reactionsOf(i)) > 0 {
+			eligible = append(eligible, i)
+		}
+	}
+	if len(eligible) == 0 {
+		return g.resolveAction()
+	}
+	g.openWindow(eligible)
+	return nil
+}
+
+func (g *Game) openWindow(eligible []int) {
+	g.decision++
+	g.window = &window{id: g.decision, pending: map[int]bool{}, responded: map[int]bool{}}
+	for _, i := range eligible {
+		g.window.pending[i] = true
+	}
+	g.phase = AwaitingResponse
+}
+
+func (g *Game) reactionsOf(i int) []Option {
+	if g.pending.rule.challengeable() {
+		return []Option{{Answer: Challenge}}
+	}
+	return nil
+}
+
+func (g *Game) optionsFor(i int) []Option {
+	if g.window == nil || !g.window.pending[i] {
+		return nil
+	}
+	return append(g.reactionsOf(i), Option{Answer: Pass})
+}
+
+func (g *Game) respond(r Respond) ([]Event, error) {
+	responder, err := g.checkResponse(r)
+	if err != nil {
+		return nil, err
+	}
+	g.window.responded[responder] = true
+	delete(g.window.pending, responder)
+	if r.Answer == Challenge {
+		return g.challenge(responder), nil
+	}
+	return g.pass(responder), nil
+}
+
+func (g *Game) checkResponse(r Respond) (int, error) {
+	if g.phase != AwaitingResponse {
+		return nobody, &Refusal{Code: "illegal_action", Message: "não há janela de reação aberta",
+			Received: "respond", Expected: g.phase.String()}
+	}
+	if r.Window != g.window.id {
+		return nobody, &Refusal{Code: "window_closed", Message: fmt.Sprintf("a janela %d já fechou", r.Window),
+			Received: r.Window, Expected: g.window.id}
+	}
+	responder := g.indexOf(r.By)
+	if g.window.responded[responder] {
+		return nobody, &Refusal{Code: "already_responded", Message: "cada um responde uma vez por janela",
+			Received: r.By, Expected: g.waitingOn()}
+	}
+	offered := g.optionsFor(responder)
+	for _, option := range offered {
+		if option == (Option{Answer: r.Answer, Character: r.Character}) {
+			return responder, nil
+		}
+	}
+	return nobody, &Refusal{Code: "illegal_action", Message: "essa resposta não está entre as suas opções",
+		Received: Option{Answer: r.Answer, Character: r.Character}, Expected: offered}
+}
+
+func (g *Game) pass(responder int) []Event {
+	passed := g.narrate("passed", fmt.Sprintf("%s deixou passar.", g.players[responder].name))
+	if len(g.window.pending) > 0 {
+		return []Event{passed}
+	}
+	g.window = nil
+	return append([]Event{passed}, g.resolveAction()...)
+}
+
+func (g *Game) continueAction() []Event {
+	return g.resolveAction()
+}
+
+func (g *Game) waitingOn() []string {
+	names := []string{}
+	for i := range g.players {
+		if g.window != nil && g.window.pending[i] {
+			names = append(names, g.players[i].name)
+		}
+	}
+	return names
+}

@@ -9,37 +9,36 @@ func (g *Game) loseInfluence(chosen LoseInfluence) ([]Event, error) {
 	}
 	target := g.players[g.losing]
 	if target.name != chosen.By {
-		return nil, &Refusal{Code: "not_your_turn", Message: "a escolha é de quem levou o golpe",
+		return nil, &Refusal{Code: "not_your_turn", Message: "a escolha é de quem perdeu a influência",
 			Received: chosen.By, Expected: target.name}
 	}
 	if !handHas(target.hand, chosen.Card) {
 		return nil, &Refusal{Code: "illegal_action", Message: "carta que não está na mão",
 			Received: chosen.Card.String(), Expected: namesOf(target.hand)}
 	}
-
-	g.phase = AwaitingAction
+	events := g.reveal(g.losing, chosen.Card)
 	g.losing = nobody
-	events := g.reveal(g.indexOf(chosen.By), chosen.Card)
-	return append(events, g.closeTurn()...), nil
+	return append(events, g.proceed(g.afterLoss)...), nil
 }
 
-func (g *Game) openInfluenceLoss(target int) []Event {
-	if len(g.players[target].hand) == 1 {
-		return g.reveal(target, g.players[target].hand[0])
+func (g *Game) loseInfluenceThen(target int, then followUp) []Event {
+	hand := g.players[target].hand
+	switch len(hand) {
+	case 0:
+		return g.proceed(then)
+	case 1:
+		return append(g.reveal(target, hand[0]), g.proceed(then)...)
 	}
 	g.phase = AwaitingInfluenceLoss
 	g.losing = target
+	g.afterLoss = then
+	g.decision++
 	return nil
 }
 
 func (g *Game) reveal(index int, card Character) []Event {
 	who := &g.players[index]
-	for position, inHand := range who.hand {
-		if inHand == card {
-			who.hand = append(who.hand[:position], who.hand[position+1:]...)
-			break
-		}
-	}
+	who.hand = withoutOne(who.hand, card)
 	who.revealed = append(who.revealed, card)
 	events := []Event{g.narrate("influence_lost",
 		fmt.Sprintf("%s revelou %s e perdeu uma influência.", who.name, card.LabelPtBR()))}
@@ -49,7 +48,7 @@ func (g *Game) reveal(index int, card Character) []Event {
 	returned := who.coins
 	who.coins = 0
 	return append(events, g.narrate("player_eliminated",
-		fmt.Sprintf("%s está fora do jogo e devolveu %d moedas ao Tesouro.", who.name, returned)))
+		fmt.Sprintf("%s está fora do jogo e devolveu %s ao Tesouro.", who.name, coinsPtBR(returned))))
 }
 
 func (g *Game) checkGameOver() ([]Event, bool) {
@@ -63,10 +62,9 @@ func (g *Game) checkGameOver() ([]Event, bool) {
 		}
 		survivor = i
 	}
-	if survivor == nobody {
-		return nil, false
-	}
 	g.phase = Finished
+	g.pending = nil
+	g.window = nil
 	g.winner = g.players[survivor].name
 	return []Event{g.narrate("game_over", fmt.Sprintf("%s venceu a partida.", g.winner))}, true
 }

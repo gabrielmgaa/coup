@@ -337,3 +337,23 @@ func TestUnreadableJsonFromTheServerIsAnError(t *testing.T) {
 		t.Error("decode accepted bytes that are not json")
 	}
 }
+
+func TestAnOpenWindowOffersExactlyTheServerOptions(t *testing.T) {
+	state := engine.View{You: "tester2", TurnOf: "tester1", Window: &engine.WindowView{
+		ID:          4,
+		Action:      engine.ActionView{Name: "tax", By: "tester1", Claims: engine.Duke},
+		YourOptions: []engine.Option{{Answer: engine.Challenge}, {Answer: engine.Pass}},
+		WaitingOn:   []string{"tester2", "tester3"},
+	}}
+	offered := gameChoices(state)
+	if labels := labelsOf(offered); len(labels) != 2 || labels[0] != "contestar o Duque de tester1" || labels[1] != "deixar passar" {
+		t.Errorf("the terminal offers %v, expected challenge and pass", labels)
+	}
+	challenge := offered[0].message
+	if challenge.Type != "respond" || challenge.Window != 4 || challenge.Answer != "challenge" || challenge.Character != "" {
+		t.Errorf("challenging sends %+v, expected respond to window 4 with no character", challenge)
+	}
+	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "esperando tester2, tester3") {
+		t.Errorf("the screen does not say who the window waits on:\n%s", screen)
+	}
+}

@@ -13,5 +13,13 @@ type LoseInfluence struct {
 	Card Character
 }
 
+type Respond struct {
+	By        string
+	Window    int
+	Answer    Answer
+	Character Character
+}
+
 func (Act) sealedMove()           {}
 func (LoseInfluence) sealedMove() {}
+func (Respond) sealedMove()       {}

@@ -108,7 +108,7 @@ que joga contra o servidor real.
 
 ---
 
-## 0.4 — Contestação
+## 0.4 — Contestação — **pronta**
 
 A fase mais pesada. **Entrega:** **Taxas** (Duque) com toda a maquinaria de janela.
 
@@ -121,7 +121,24 @@ servidor.
 
 **Pronto quando:** os testes dos galhos C2 e D2 (contestação derruba a ação, custo volta) e do
 caso "contestou e perdeu" passam afirmando moedas e influências **por número**; e três abas
-jogam uma partida onde alguém blefa Duque, é pego, e perde influência.
+jogam uma partida onde alguém blefa Duque, é pego, e perde influência. ✅ Os galhos com custo
+(C2/D2 com as 3 moedas voltando) só existem com Assassinar e ficam cobertos na 0.6; com Taxas,
+`TestTaxBluffCaughtCostsAnInfluenceAndPaysNothing` e
+`TestTaxChallengedWithTheDukeCostsTheChallengerAndSwapsTheCard` afirmam por número, e
+`TestThreeTabsCatchADukeClaimAndTheLoserPicksACard` joga pelo WebSocket.
+
+**Decisões tomadas na execução:**
+
+- **`your_options` é lista de objetos** `{answer, character?}`, não de strings como
+  `block_with_contessa`: o cliente devolve o objeto no `respond` sem precisar picotar texto.
+- **`waiting_on` no lugar de `already_responded`.** A tela quer mostrar quem falta, e a pausa da
+  0.8 precisa da mesma lista.
+- **Sem `Window` exportado e sem `OpenWindow()`.** O ID da janela é o contador `decision`, que
+  sobe a cada coisa nova que o jogo espera; o servidor lê pelo snapshot.
+- **Toda ação narra o que rendeu** (`coins_gained`), e a frase de declaração mora na tabela
+  (`Rule.Declaration`), não num `switch`.
+- **O contestador perdendo a última carta encerra a partida antes do efeito.** `proceed` confere
+  vitória antes de qualquer outra coisa.
 
 ---
 

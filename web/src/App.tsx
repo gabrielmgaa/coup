@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import {
   actionLabel,
   cardLabel,
+  optionLabel,
   roomAddress,
   type AvailableAction,
   type FromClient,
@@ -205,7 +206,7 @@ function YourTurn({ state, send }: { state: View; send: (message: FromClient) =>
   if (state.losing === state.you) {
     return (
       <section className="actions">
-        <p>você levou um golpe — qual carta revela?</p>
+        <p>você perdeu uma influência — qual carta revela?</p>
         {me?.my_cards?.map((card, position) => (
           <button key={`${card}-${position}`} onClick={() => send({ type: 'lose_influence', card })}>
             revelar {cardLabel(card)}
@@ -220,6 +221,26 @@ function YourTurn({ state, send }: { state: View; send: (message: FromClient) =>
   }
 
   if (state.phase === 'finished') return null
+
+  if (state.window) {
+    const window = state.window
+    return (
+      <section className="actions">
+        <p>
+          {window.action.by} declarou {actionLabel(window.action.name)}
+          {window.action.target && ` em ${window.action.target}`} — esperando {window.waiting_on.join(', ')}
+        </p>
+        {window.your_options.map((option) => (
+          <button
+            key={`${option.answer}-${option.character ?? ''}`}
+            onClick={() => send({ type: 'respond', window: window.id, ...option })}
+          >
+            {optionLabel(window, option)}
+          </button>
+        ))}
+      </section>
+    )
+  }
 
   if (state.turn_of !== state.you) {
     return <p className="waiting">é a vez de {state.turn_of}…</p>
