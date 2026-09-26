@@ -80,3 +80,10 @@ func TestLobbyAndRefusalCarryTheirType(t *testing.T) {
 		t.Errorf("lobby %s and refusal %s do not lead with their type", lobby, refusal)
 	}
 }
+
+func TestAWelcomeCarriesRoomAndToken(t *testing.T) {
+	encoded, _ := json.Marshal(NewWelcome("K7QM", "secret"))
+	if string(encoded) != `{"type":"welcome","room":"K7QM","token":"secret"}` {
+		t.Errorf("the welcome serialized as %s", encoded)
+	}
+}

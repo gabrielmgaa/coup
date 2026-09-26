@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"net"
+	"strconv"
 	"testing"
 
 	"github.com/gabrielmgaa/coup/internal/tui"
@@ -84,5 +86,17 @@ func TestTheSeedComesFromTheSystem(t *testing.T) {
 	second, _ := seededRand()
 	if first.Uint64() == second.Uint64() {
 		t.Error("two seeds drew the same first number")
+	}
+}
+
+func TestServeReportsAPortThatIsAlreadyTaken(t *testing.T) {
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("could not hold a port: %v", err)
+	}
+	defer taken.Close()
+	port := taken.Addr().(*net.TCPAddr).Port
+	if err := run([]string{"serve", "-port", strconv.Itoa(port)}); err == nil {
+		t.Errorf("serve returned no error on port %d, which is already taken", port)
 	}
 }

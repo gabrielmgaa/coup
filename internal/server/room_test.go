@@ -347,7 +347,7 @@ func TestARepeatedCodeDoesNotStealTheRoomThatAlreadyHasIt(t *testing.T) {
 		return next
 	}
 
-	first, refusal := desk.roomFor(protocol.FromClient{Type: "create_room"})
+	first, refusal := desk.roomFor(protocol.FromClient{Type: "create_room", Name: "tester1"})
 	if refusal != nil {
 		t.Fatalf("create_room was refused: %v", refusal)
 	}
@@ -359,7 +359,7 @@ func TestARepeatedCodeDoesNotStealTheRoomThatAlreadyHasIt(t *testing.T) {
 		t.Fatalf("the first room got code %q, expected K7QM", opening.State.Room)
 	}
 
-	second, refusal := desk.roomFor(protocol.FromClient{Type: "create_room"})
+	second, refusal := desk.roomFor(protocol.FromClient{Type: "create_room", Name: "tester1"})
 	if refusal != nil {
 		t.Fatalf("the second create_room was refused: %v", refusal)
 	}

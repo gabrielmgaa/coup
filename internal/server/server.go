@@ -68,21 +68,33 @@ func (d *registry) roomFor(first protocol.FromClient) (*Room, *engine.Refusal) {
 
 	switch first.Type {
 	case "create_room":
+		if refusal := checkName(first.Name); refusal != nil {
+			return nil, refusal
+		}
 		opened := newRoom(d.seedRoom(), d.config, d.freeCode(), d.forget)
 		opened.options = first.Options
 		d.rooms[opened.code] = opened
 		go opened.run()
 		return opened, nil
-	case "join", "reconnect":
-		waiting, known := d.rooms[first.Room]
-		if !known {
-			return nil, roomNotFound(first.Room)
+	case "join":
+		if refusal := checkName(first.Name); refusal != nil {
+			return nil, refusal
 		}
-		return waiting, nil
+		return d.existing(first.Room)
+	case "reconnect":
+		return d.existing(first.Room)
 	}
 	return nil, &engine.Refusal{Code: "illegal_action",
 		Message:  "a primeira mensagem precisa abrir uma sala ou entrar numa",
 		Received: first.Type, Expected: []string{"create_room", "join", "reconnect"}}
+}
+
+func (d *registry) existing(code string) (*Room, *engine.Refusal) {
+	waiting, known := d.rooms[code]
+	if !known {
+		return nil, roomNotFound(code)
+	}
+	return waiting, nil
 }
 
 func roomNotFound(code string) *engine.Refusal {
@@ -132,10 +144,6 @@ func (d *registry) accept(w http.ResponseWriter, request *http.Request) {
 			Received: err.Error(), Expected: []string{"create_room", "join", "reconnect"}})
 		return
 	}
-	if refusal := checkFirst(first); refusal != nil {
-		refuseAndClose(ctx, conn, refusal)
-		return
-	}
 	opened, refusal := d.roomFor(first)
 	if refusal != nil {
 		refuseAndClose(ctx, conn, refusal)
@@ -149,13 +157,6 @@ func (d *registry) accept(w http.ResponseWriter, request *http.Request) {
 	}
 	go write(ctx, conn, c)
 	opened.read(ctx, conn, c)
-}
-
-func checkFirst(first protocol.FromClient) *engine.Refusal {
-	if first.Type == "reconnect" {
-		return nil
-	}
-	return checkName(first.Name)
 }
 
 func admission(first protocol.FromClient) protocol.FromClient {

@@ -433,3 +433,10 @@ func TestComingBackAndDroppingAgainEarnsAFreshPause(t *testing.T) {
 		t.Errorf("turn %q paused %+v, expected a new pause waiting on %s, who had come back", paused.TurnOf, paused.Paused, actor)
 	}
 }
+
+func TestTheDefaultConfigFollowsThePlan(t *testing.T) {
+	config := DefaultConfig(engine.RulebookCoins)
+	if config.Deadline != 25*time.Second || config.Grace != 30*time.Second || config.IdleTTL != 30*time.Minute {
+		t.Errorf("the default config is %+v, expected 25s, 30s and 30min", config)
+	}
+}

@@ -55,12 +55,15 @@ go build -o coup ./cmd/coup
 O binário resultante contém o site. Não tem pasta pra subir, CDN nem nginx.
 
 `make verify` roda o que um PR precisa passar: `go test -race`, `go vet`, `gofmt`, e o build e
-o lint do site.
+o lint do site. A cobertura fica acima de 95% (`go test -cover ./...`).
 
 ### Testes
 
 - `internal/engine` — cada ação, os oito galhos da árvore de uma ação afirmando moedas e cartas
-  por número e uma partida roteirizada que usa todas as ações.
+  por número, uma partida roteirizada que usa todas as ações, e uma bateria que joga centenas de
+  partidas aleatórias misturando jogadas legais com tentativas de roubo — carta que aparece ou
+  some, moeda negativa, eliminado com moedas, mão alheia no snapshot, jogada recusada que muda a
+  mesa. A mesma bateria roda como fuzz: `go test -fuzz=FuzzAnyMoveSequenceKeepsTheTableWhole ./internal/engine`.
 - `internal/server` — ponta a ponta pelo WebSocket: lobby, partida, prazo, pausa, reconexão, TTL,
   revanche, e tentativas de trapaça (jogar fora da vez, falar por outro assento, forjar
   mensagem interna, reusar token de outra sala, sentar duas vezes pela mesma conexão).

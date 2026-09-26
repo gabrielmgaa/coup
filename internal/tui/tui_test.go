@@ -508,3 +508,51 @@ func TestTheFirstMessageDependsOnWhatTheTableKnows(t *testing.T) {
 		}
 	}
 }
+
+func TestTheSessionLivesUnderTheUserConfigFolder(t *testing.T) {
+	folder := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", folder)
+	path, err := SessionPath()
+	if err != nil || path != filepath.Join(folder, "coup", "session.json") {
+		t.Errorf("the session path is %q, %v; expected it under %s", path, err, folder)
+	}
+}
+
+func TestASessionThatCannotBeWrittenIsAnError(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "file")
+	os.WriteFile(blocker, nil, 0o600)
+	if err := (Session{Name: "tester1"}).Save(filepath.Join(blocker, "coup", "session.json")); err == nil {
+		t.Error("saving under a regular file succeeded")
+	}
+}
+
+func TestEveryStatusLineMatchesWhatTheGameWaitsFor(t *testing.T) {
+	for _, scenario := range []struct {
+		state    engine.View
+		expected string
+	}{
+		{engine.View{You: "tester1", Winner: "tester2"}, "tester2 venceu a partida"},
+		{engine.View{You: "tester1", Losing: "tester1"}, "qual carta revela"},
+		{engine.View{You: "tester1", Losing: "tester2"}, "tester2 está escolhendo qual carta perder"},
+		{engine.View{You: "tester1", TurnOf: "tester1"}, "sua vez"},
+		{engine.View{You: "tester1", TurnOf: "tester2"}, "é a vez de tester2"},
+	} {
+		if status := renderStatus(scenario.state); !strings.Contains(status, scenario.expected) {
+			t.Errorf("the status reads %q, expected %q", status, scenario.expected)
+		}
+	}
+	window := renderWindow(engine.WindowView{Action: engine.ActionView{Name: "steal", By: "tester1", Target: "tester2"}, WaitingOn: []string{"tester2"}})
+	if !strings.Contains(window, "tester1 declarou Extorquir em tester2") {
+		t.Errorf("the window line reads %q", window)
+	}
+	if label := actionLabel("mystery"); label != "mystery" {
+		t.Errorf("an unknown action is labelled %q, expected its own name", label)
+	}
+}
+
+func TestLosingTheConnectionWithoutARefusalKeepsTheSocketError(t *testing.T) {
+	updated, _ := NewModel(nil, nil, nil).Update(connectionLost{err: os.ErrClosed})
+	if lost := updated.(Model).Lost(); lost != os.ErrClosed {
+		t.Errorf("the exit reason is %v, expected the socket error", lost)
+	}
+}
