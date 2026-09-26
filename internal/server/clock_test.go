@@ -62,6 +62,9 @@ func TestTheSnapshotCarriesTheTimeLeftToDecide(t *testing.T) {
 	if state.ClosesInMs <= 0 || state.ClosesInMs > shortDeadline.Milliseconds() {
 		t.Errorf("closes_in_ms is %d, expected between 1 and %d", state.ClosesInMs, shortDeadline.Milliseconds())
 	}
+	if state.DecisionMs != shortDeadline.Milliseconds() {
+		t.Errorf("decision_ms is %d, expected the whole %d so the bar knows its length", state.DecisionMs, shortDeadline.Milliseconds())
+	}
 }
 
 func TestAnUnansweredTurnPlaysIncomeWhenTheDeadlineRuns(t *testing.T) {

@@ -45,6 +45,7 @@ type GameState struct {
 	engine.View
 	Room         string      `json:"room"`
 	ClosesInMs   int64       `json:"closes_in_ms,omitempty"`
+	DecisionMs   int64       `json:"decision_ms,omitempty"`
 	Paused       *PausedView `json:"paused"`
 	Disconnected []string    `json:"disconnected"`
 }

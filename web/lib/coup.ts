@@ -13,7 +13,9 @@ export type AvailableAction = {
   targets?: string[]
 }
 
-export type Option = { answer: 'challenge' | 'block' | 'pass'; character?: string }
+export type Answer = 'challenge' | 'block' | 'pass'
+
+export type Option = { answer: Answer; character?: string }
 
 export type WindowView = {
   id: number
@@ -23,6 +25,8 @@ export type WindowView = {
   waiting_on: string[]
 }
 
+export type Options = { independent_reactions: boolean }
+
 export type GameState = {
   room: string
   phase: string
@@ -31,23 +35,20 @@ export type GameState = {
   losing?: string
   winner?: string
   deck_remaining: number
+  options: Options
   players: PlayerView[]
   window: WindowView | null
   your_actions: AvailableAction[]
   your_returns?: string[][]
   closes_in_ms?: number
+  decision_ms?: number
   paused: { waiting_for: string[]; resumes_in_ms: number } | null
   disconnected: string[]
 }
 
 export type GameEvent = { n: number; type: string; text: string }
 
-export type SeatView = {
-  name: string
-  ready: boolean
-}
-
-export type Options = { independent_reactions: boolean }
+export type SeatView = { name: string; ready: boolean }
 
 export type LobbyView = {
   room: string
@@ -72,7 +73,7 @@ export type FromClient =
   | { type: 'start' }
   | { type: 'play'; action: string; target?: string }
   | { type: 'lose_influence'; card: string }
-  | { type: 'respond'; window: number; answer: Option['answer']; character?: string }
+  | { type: 'respond'; window: number; answer: Answer; character?: string }
   | { type: 'return_cards'; cards: string[] }
 
 export type Send = (message: FromClient) => void
@@ -81,10 +82,10 @@ const actionLabels: Record<string, string> = {
   income: 'renda',
   foreign_aid: 'ajuda externa',
   tax: 'taxas',
-  assassinate: 'assassinar',
-  steal: 'extorquir',
   exchange: 'trocar',
-  coup: 'golpe',
+  steal: 'extorquir',
+  assassinate: 'assassinar',
+  coup: 'golpe de estado',
 }
 
 const cardLabels: Record<string, string> = {
@@ -103,13 +104,15 @@ export function cardLabel(name: string): string {
   return cardLabels[name] ?? name
 }
 
+export function capitalized(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 export function optionLabel(window: WindowView, option: Option): string {
-  if (option.answer === 'challenge' && window.block) {
-    return `contestar o ${cardLabel(window.block.character)} de ${window.block.by}`
-  }
-  if (option.answer === 'challenge') return `contestar o ${cardLabel(window.action.claims ?? '')} de ${window.action.by}`
-  if (option.answer === 'block') return `bloquear com ${cardLabel(option.character ?? '')}`
-  return 'deixar passar'
+  if (option.answer === 'block') return `bloquear com ${capitalized(cardLabel(option.character ?? ''))}`
+  if (option.answer === 'pass') return 'deixar passar'
+  const claim = window.block ? window.block.character : (window.action.claims ?? '')
+  return `contestar o ${capitalized(cardLabel(claim))}`
 }
 
 export function roomAddress(): string {
@@ -130,7 +133,7 @@ export function loadSession(): Session | null {
   }
 }
 
-export function saveSession(session: Session) {
+export function saveSession(session: Session): void {
   try {
     localStorage.setItem(sessionKey, JSON.stringify(session))
   } catch {
@@ -138,7 +141,7 @@ export function saveSession(session: Session) {
   }
 }
 
-export function forgetSession() {
+export function forgetSession(): void {
   try {
     localStorage.removeItem(sessionKey)
   } catch {

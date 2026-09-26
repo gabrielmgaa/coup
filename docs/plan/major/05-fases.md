@@ -282,6 +282,13 @@ CLI; o binário roda numa máquina sem Go instalado; e a definição de pronto d
 
 ---
 
+## Depois do core — o front novo
+
+**Feito:** a direção visual "Esmalte" do canvas `Coup — Direção Visual` virou o front, e o Vite
+virou Next.js (export estático) + Tailwind por decisão do dono do projeto — a Q4 do
+[`README.md`](README.md) foi atualizada com o motivo. Entrou junto `decision_ms` no snapshot,
+para a barra de tempo da janela saber o próprio comprimento.
+
 ## Depois do core
 
 Modo LAN com mDNS — já aprovado como primeira adição, e o `embed.FS` da fase 0.1 já preparou o

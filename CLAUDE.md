@@ -27,8 +27,8 @@ returns, explicit types, no `any`, refusals carry received *and* expected values
 ## Commands
 
 ```sh
-# dev — TWO processes. Vite proxies /ws to the Go server (web/vite.config.ts).
-cd web && pnpm install && pnpm dev    # :5173, hot reload
+# dev — TWO processes. next dev rewrites /ws to the Go server (web/next.config.ts, dev only).
+cd web && pnpm install && pnpm dev    # :3000, hot reload
 go run ./cmd/coup serve               # :8080
 
 # release — ONE process. pnpm build MUST come first; go build embeds web/dist.
@@ -95,9 +95,9 @@ in TypeScript.
 ### The client knows no rules
 
 The server sends `your_actions` (what is legal right now, targets already filtered),
-`your_options` for the open window, and `your_returns` during an exchange. React and the future Bubble Tea client are pure
-renderers: draw buttons from a list, send back what was clicked. `web/src/App.tsx` has no game
-rule in it, and must not gain one.
+`your_options` for the open window, and `your_returns` during an exchange. The Next.js page and the Bubble Tea client are pure
+renderers: draw buttons from a list, send back what was clicked. Nothing under `web/` has a game rule in it, and
+nothing there may gain one.
 
 ### The engine has no clock
 
@@ -118,12 +118,22 @@ character", and who may block = "has a target → only the target; no target →
 money asymmetry of Coup (a successful challenge refunds the cost, a successful block does not)
 must stay in that one place.
 
+### The site is a Next.js static export
+
+`web/` is Next.js (App Router) + Tailwind v4 with `output: 'export'` and `distDir: 'dist'`: no
+SSR, no server routes, no rewrites in production — one page, rendered only on the client
+(`next/dynamic` with `ssr: false`), talking to the Go server over `/ws`. Fonts come from
+`@fontsource` so the binary works on a LAN with no internet. The visual direction ("Esmalte":
+paper, 3 px ink outline, hard shadow, one hue per card) lives as Tailwind tokens in
+`web/app/globals.css`; card hues and glyphs in `web/lib/palette.ts` and `web/components/cards.tsx`.
+`agentRules: false` in `next.config.ts` stops `next dev` from writing its own AGENTS.md/CLAUDE.md.
+
 ### The load-bearing empty files
 
 `go:embed` is a **compile error** when its pattern matches nothing, so `web/dist/` can never be
 empty. Two empty files guarantee that: `web/dist/.gitkeep` is committed so a fresh clone builds
 before anyone runs `pnpm build`, and `web/public/.gitkeep` is copied into `dist` by every
-`pnpm build`, replacing the first one, which Vite deletes when it empties the folder. Deleting
+`pnpm build`, replacing the first one, which `next build` deletes when it empties the folder. Deleting
 either breaks `go build ./...`. Also: the `//go:embed` directive cannot use `..`, which is why
 it lives in `web/embed.go` rather than in `server` or `cmd`.
 

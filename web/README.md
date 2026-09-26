@@ -1,37 +1,48 @@
 # `web` — a mesa no navegador
 
-Vite + React + TypeScript. Desenha a mesa a partir do snapshot que chega pelo WebSocket e manda de
-volta o que foi clicado. **Não tem regra de Coup aqui dentro, e não pode ganhar nenhuma.**
+Next.js (App Router) + Tailwind v4 + TypeScript, como **export estático**. Desenha a mesa a
+partir do snapshot que chega pelo WebSocket e manda de volta o que foi clicado. **Não tem regra
+de Coup aqui dentro, e não pode ganhar nenhuma.**
 
 ## Arquivos
 
 | | |
 |---|---|
-| `src/coup.ts` | os tipos do fio (`GameState`, `PlayerView`, `GameEvent`, `FromServer`…), a tradução pra tela (`actionLabel`, `cardLabel`, `optionLabel`) e a sessão no `localStorage` |
-| `src/connection.ts` | `useTable`: o WebSocket, o `welcome` salvo, a reconexão automática; `useSecondsLeft` para o countdown |
-| `src/App.tsx` | escolhe a tela: formulário de entrada, lobby ou mesa |
-| `src/Lobby.tsx` | o lobby: assentos, pronto, começar |
-| `src/Table.tsx` | a mesa: assentos, countdown, pausa, a decisão da vez (ações, reações, perda, troca) e o log |
-| `src/index.css` | o estilo |
+| `app/layout.tsx` | o HTML de fora: `lang`, título, ícone, cor do tema |
+| `app/page.tsx` | a única página; carrega `components/Coup` só no navegador (`ssr: false`) |
+| `app/globals.css` | Tailwind e o tema da direção Esmalte: cores, fontes, sombras sólidas e os utilitários `btn`, `tag`, `label`, `panel`, `numeric` |
+| `lib/coup.ts` | os tipos do fio (`GameState`, `WindowView`, `FromServer`…), os rótulos pt-BR (`actionLabel`, `cardLabel`, `optionLabel`) e a sessão no `localStorage` |
+| `lib/connection.ts` | `useTable`: WebSocket, `welcome` salvo, reconexão automática, a última partida para a tela de fim; `useSecondsLeft` para os relógios |
+| `lib/palette.ts` | a cor de cada carta, como classe Tailwind escrita por extenso |
+| `components/cards.tsx` | as cinco cartas (glifo, legenda, nome), o verso, o chip de carta revelada, as moedas e a narração que pinta o nome da carta na cor dela |
+| `components/Coup.tsx` | escolhe a tela: entrada, lobby, fim de partida ou mesa |
+| `components/JoinForm.tsx`, `Lobby.tsx`, `Ending.tsx` | as três telas fora da partida |
+| `components/Table.tsx` | a mesa: barra do topo, e as quatro áreas abaixo |
+| `components/Seats.tsx` | os outros assentos; quem está na vez vira esmalte preto, quem caiu fica dourado, quem saiu fica riscado |
+| `components/Arena.tsx` | o centro: a janela de reação (com a barra de tempo), a pausa, ou a última jogada |
+| `components/Hand.tsx` | a sua mão e a sua decisão: ações (com alvo em dois toques), revelar carta, escolher o que devolver na troca |
+| `components/Log.tsx` | o registro |
 | `embed.go` | pacote Go de uma função: `Dist()` devolve o `dist/` embutido no binário |
 
 ## O cliente não sabe as regras
 
-Os botões saem de `state.your_actions`, que o servidor manda já filtrado — com os alvos válidos
-dentro. O React não decide que Extorsão não mira quem tem 0 moedas, nem que com 10 moedas só
-sobra o Golpe. Ele desenha a lista que recebeu.
+Os botões saem de `your_actions`, `window.your_options` e `your_returns`, que o servidor manda
+já filtrados. Na troca, a tela deixa marcar duas cartas e só libera o envio se o par marcado
+estiver em `your_returns` — a lista decide, não a tela. A legenda impressa em cada carta
+("taxas · +3", "bloqueia extorsão") é texto de carta, como o nome dela.
 
-O motivo é economia: cada regra escrita aqui seria escrita **de novo** em Go no motor e mais uma
-vez na TUI da 0.3 — e as três divergiriam.
+## Por que Next só como export estático
 
-Os nomes cruzam o fio em inglês (`income`, `coup`, `duke`) e viram pt-BR na borda, em
-`actionLabel` e `cardLabel`. Texto de evento já chega pronto do servidor, em pt-BR.
+O binário único é o requisito: o Go embute `dist/` e serve tudo. `output: 'export'` gera HTML e JS
+estáticos; não há SSR, rota de servidor nem rewrite em produção. O rewrite de `/ws` pro `:8080`
+existe só no `next dev`. As fontes vêm do `@fontsource`, dentro do build, então a mesa funciona
+numa LAN sem internet. `agentRules: false` impede o `next dev` de escrever um AGENTS.md aqui.
 
 ## Dois processos em dev, um em release
 
 ```sh
-pnpm dev      # :5173, hot reload. O proxy de /ws pro :8080 está em vite.config.ts
-pnpm build    # roda tsc -b e gera dist/ — precisa vir ANTES do go build
+pnpm dev      # :3000, hot reload; /ws vai pro Go em :8080
+pnpm build    # tsc + next build, gera dist/ — precisa vir ANTES do go build
 pnpm lint     # oxlint
 ```
 
@@ -40,7 +51,7 @@ pnpm lint     # oxlint
 `go:embed` é **erro de compilação** quando o padrão não casa arquivo nenhum, então `dist/` nunca
 pode ficar vazia. `dist/.gitkeep` está no git e faz um clone novo compilar antes de qualquer
 build; `public/.gitkeep` é copiado pra dentro do `dist` por todo `pnpm build`, repondo o
-primeiro, que o Vite apaga ao esvaziar a pasta. Apagar qualquer um dos dois quebra
+primeiro, que o `next build` apaga ao esvaziar a pasta. Apagar qualquer um dos dois quebra
 `go build ./...`.
 
 A diretiva `//go:embed` não aceita `..`, e é só por isso que `embed.go` mora aqui e não em

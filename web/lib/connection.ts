@@ -18,23 +18,29 @@ const lostSessionCodes = ['invalid_token', 'room_not_found']
 export type Table = {
   lobby: LobbyView | null
   game: GameState | null
+  ended: GameState | null
   log: GameEvent[]
   refusal: string | null
   reconnecting: boolean
   deadline: number
+  pauseDeadline: number
   enter: (first: FromClient) => void
   send: (message: FromClient) => void
+  dismissEnding: () => void
 }
 
 export function useTable(): Table {
   const [lobby, setLobby] = useState<LobbyView | null>(null)
   const [game, setGame] = useState<GameState | null>(null)
+  const [ended, setEnded] = useState<GameState | null>(null)
   const [log, setLog] = useState<GameEvent[]>([])
   const [refusal, setRefusal] = useState<string | null>(null)
   const [reconnecting, setReconnecting] = useState(false)
   const [deadline, setDeadline] = useState(0)
+  const [pauseDeadline, setPauseDeadline] = useState(0)
   const socket = useRef<WebSocket | null>(null)
   const retries = useRef(0)
+  const current = useRef<GameState | null>(null)
 
   function receive(message: FromServer) {
     if (message.type === 'welcome') {
@@ -50,13 +56,18 @@ export function useTable(): Table {
     }
     setRefusal(null)
     if (message.type === 'lobby') {
+      if (current.current?.winner) setEnded(current.current)
+      current.current = null
       setLobby(message.state)
       setGame(null)
       setLog([])
       return
     }
+    current.current = message.state
+    setEnded(null)
     setGame(message.state)
     setDeadline(message.state.closes_in_ms ? Date.now() + message.state.closes_in_ms : 0)
+    setPauseDeadline(message.state.paused ? Date.now() + message.state.paused.resumes_in_ms : 0)
     setLog((previous) => [...previous, ...message.events])
   }
 
@@ -90,7 +101,19 @@ export function useTable(): Table {
     if (saved) enter({ type: 'reconnect', ...saved })
   }, [])
 
-  return { lobby, game, log, refusal, reconnecting, deadline, enter, send }
+  return {
+    lobby,
+    game,
+    ended,
+    log,
+    refusal,
+    reconnecting,
+    deadline,
+    pauseDeadline,
+    enter,
+    send,
+    dismissEnding: () => setEnded(null),
+  }
 }
 
 export function useSecondsLeft(deadline: number): number {

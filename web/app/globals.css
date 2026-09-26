@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/jetbrains-mono';
+
+@theme {
+  --font-sans: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-card: #ffffff;
+  --color-paper: #fbf6ea;
+  --color-table: #f2ebda;
+  --color-line: #dfd6c2;
+  --color-edge: #c4b9a5;
+  --color-ink: #1a1712;
+  --color-ink-soft: #4a4238;
+  --color-muted: #6b6357;
+  --color-faint: #9a9184;
+  --color-gold: #f4c542;
+  --color-gold-wash: #fbf0d2;
+  --color-blood: #c81e1e;
+  --color-blood-wash: #fbe2e0;
+  --color-duke: #6d28d9;
+  --color-assassin: #1a1712;
+  --color-captain: #1d4ed8;
+  --color-ambassador: #047857;
+  --color-contessa: #be185d;
+
+  --shadow-lift: 4px 4px 0 var(--color-ink);
+  --shadow-lift-lg: 5px 5px 0 var(--color-ink);
+  --shadow-press: 3px 3px 0 var(--color-ink);
+  --shadow-gold: 5px 5px 0 var(--color-gold);
+  --shadow-blood: 6px 6px 0 var(--color-blood);
+}
+
+@layer base {
+  body {
+    @apply min-h-dvh bg-paper font-sans text-base text-ink antialiased;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  :focus-visible {
+    @apply outline-3 outline-offset-3 outline-gold;
+  }
+}
+
+@utility label {
+  @apply text-[11px] leading-[13px] font-bold tracking-[0.16em] text-muted uppercase;
+}
+
+@utility btn {
+  @apply inline-flex min-h-[50px] cursor-pointer items-center justify-center gap-2.5 rounded-full border-3 border-ink bg-card px-[22px] text-base font-bold text-ink shadow-press transition-[translate,box-shadow] duration-75;
+  @apply enabled:hover:-translate-x-px enabled:hover:-translate-y-px enabled:hover:shadow-lift;
+  @apply enabled:active:translate-x-[3px] enabled:active:translate-y-[3px] enabled:active:shadow-none;
+  @apply disabled:cursor-not-allowed disabled:border-edge disabled:bg-table disabled:text-faint disabled:shadow-none;
+}
+
+@utility btn-primary {
+  @apply bg-ink text-paper;
+}
+
+@utility tag {
+  @apply inline-block rounded-full border-2 border-ink bg-table px-3 py-1 text-[11px] font-bold tracking-[0.16em] uppercase;
+}
+
+@utility panel {
+  @apply rounded-[22px] border-3 border-ink bg-card shadow-lift-lg;
+}
+
+@utility numeric {
+  @apply font-mono font-bold tabular-nums;
+}

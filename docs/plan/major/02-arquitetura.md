@@ -232,7 +232,7 @@ coup/
 │   ├── protocol/             # os tipos que viajam no fio
 │   ├── server/               # http, websocket, registry, Room (o actor)
 │   └── tui/                  # cliente Bubble Tea (só nasce na 0.3)
-├── web/                      # Vite + React + TS
+├── web/                      # Next.js (export estático) + Tailwind + TS
 │   ├── embed.go              # o //go:embed mora aqui: a diretiva não aceita `..`
 │   └── dist/                 # build; embutido via embed.FS
 ├── docs/plan/major/
@@ -265,6 +265,6 @@ Servir são duas linhas:
 mux.Handle("/", http.FileServerFS(web.Dist()))
 ```
 
-**O custo honesto:** em desenvolvimento ninguém quer rodar `vite build` a cada `ctrl+s`. Então
-o dia a dia é o servidor Vite em `:5173` com proxy de `/ws` pro Go em `:8080`, e o `embed` só
+**O custo honesto:** em desenvolvimento ninguém quer rodar `next build` a cada `ctrl+s`. Então
+o dia a dia é o `next dev` em `:3000` com rewrite de `/ws` pro Go em `:8080`, e o `embed` só
 vale na build de release. Dois processos em dev, um só em produção.

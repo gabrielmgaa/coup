@@ -35,11 +35,11 @@ deliberadas (alvo sem moedas não pode ser extorquido; tesouro infinito) estão 
 
 ## Desenvolver
 
-Em desenvolvimento são **dois processos**, porque ninguém quer esperar `vite build` a cada
+Em desenvolvimento são **dois processos**, porque ninguém quer esperar `next build` a cada
 `ctrl+s`:
 
 ```sh
-cd web && pnpm install && pnpm dev   # :5173, com hot reload
+cd web && pnpm install && pnpm dev   # :3000, com hot reload
 go run ./cmd/coup serve              # :8080
 ```
 
@@ -74,7 +74,7 @@ o lint do site. A cobertura fica acima de 95% (`go test -cover ./...`).
 `go:embed` é erro de compilação quando o padrão não casa arquivo nenhum, então `web/dist/`
 nunca pode ficar vazia. Quem segura isso são dois arquivos vazios: **`web/dist/.gitkeep`** está
 no git e faz um clone recém-baixado compilar antes de qualquer build; **`web/public/.gitkeep`** é
-copiado pra dentro do `dist` por todo `pnpm build`, repondo o primeiro, que o Vite apaga ao
+copiado pra dentro do `dist` por todo `pnpm build`, repondo o primeiro, que o `next build` apaga ao
 esvaziar a pasta. Apagar qualquer um dos dois quebra `go build ./...`.
 
 ## Créditos

@@ -36,6 +36,9 @@ func (r *Room) gameStateFor(seated *seat) protocol.GameState {
 			state.Disconnected = append(state.Disconnected, other.name)
 		}
 	}
+	if state.ClosesInMs > 0 {
+		state.DecisionMs = r.config.Deadline.Milliseconds()
+	}
 	if r.clock.paused != nil {
 		state.Paused = &protocol.PausedView{WaitingFor: r.clock.paused, ResumesInMs: r.clock.resumesInMs()}
 	}
