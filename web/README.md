@@ -7,8 +7,11 @@ volta o que foi clicado. **Não tem regra de Coup aqui dentro, e não pode ganha
 
 | | |
 |---|---|
-| `src/coup.ts` | os tipos do fio (`View`, `PlayerView`, `GameEvent`, `FromServer`…) e a tradução pra tela: `actionLabel`, `cardLabel` |
-| `src/App.tsx` | o componente único: formulário de entrada, mesa, mão, log, botões |
+| `src/coup.ts` | os tipos do fio (`GameState`, `PlayerView`, `GameEvent`, `FromServer`…), a tradução pra tela (`actionLabel`, `cardLabel`, `optionLabel`) e a sessão no `localStorage` |
+| `src/connection.ts` | `useTable`: o WebSocket, o `welcome` salvo, a reconexão automática; `useSecondsLeft` para o countdown |
+| `src/App.tsx` | escolhe a tela: formulário de entrada, lobby ou mesa |
+| `src/Lobby.tsx` | o lobby: assentos, pronto, começar |
+| `src/Table.tsx` | a mesa: assentos, countdown, pausa, a decisão da vez (ações, reações, perda, troca) e o log |
 | `src/index.css` | o estilo |
 | `embed.go` | pacote Go de uma função: `Dist()` devolve o `dist/` embutido no binário |
 

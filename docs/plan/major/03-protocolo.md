@@ -32,7 +32,7 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 | `start` | — | Só o host, só com todos prontos e ≥2 jogadores | **0.2** |
 | `respond` | `window`, `answer`, `character?` | `answer` ∈ `challenge` / `block` / `pass` | **0.4** |
 | `return_cards` | `cards: [duas]` | Após Trocar (Embaixador); os pares válidos chegam em `your_returns` | **0.7** |
-| `reconnect` | `token` | Retomar a sessão de antes | 0.8 |
+| `reconnect` | `room`, `token` | Retomar a sessão de antes | **0.8** |
 
 `character` só acompanha `block`, porque Extorsão aceita dois bloqueadores diferentes
 (Capitão ou Embaixador) e o motor precisa saber qual foi alegado pra resolver a contestação.
@@ -44,7 +44,7 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 | `update` | `state`, `events` | **0.1** |
 | `error` | `code`, `message`, `received`, `expected` | **0.1** |
 | `lobby` | `state` com `room`, `you`, `host` e `players` de `{name, ready}` | **0.2** |
-| `welcome` | `token` | 0.8, junto da reconexão |
+| `welcome` | `room`, `token` — só para quem acabou de sentar | **0.8** |
 
 **`lobby` e `update` são mensagens distintas.** Enquanto a partida não começou, a sala manda
 `lobby`; depois do `start`, manda `update` e nunca mais `lobby`. O cliente troca de tela pela
@@ -212,7 +212,7 @@ está depurando.
 | `too_many_players` | o motor recusou mais de 6 nomes | **0.2** |
 | `window_closed` | respondeu a uma janela que já resolveu | **0.4** |
 | `already_responded` | segunda resposta na mesma janela | **0.4** |
-| `invalid_token` | reconexão com token desconhecido | 0.8 |
+| `invalid_token` | reconexão com token desconhecido | **0.8** |
 
 Um erro é sempre resposta a **uma** mensagem daquele cliente, e nunca é difundido.
 

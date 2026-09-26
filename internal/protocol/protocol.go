@@ -14,6 +14,7 @@ type FromClient struct {
 	Answer    string   `json:"answer,omitempty"`
 	Character string   `json:"character,omitempty"`
 	Cards     []string `json:"cards,omitempty"`
+	Token     string   `json:"token,omitempty"`
 }
 
 type SeatView struct {
@@ -37,13 +38,36 @@ func NewLobby(state LobbyView) Lobby {
 	return Lobby{Type: "lobby", State: state}
 }
 
+type GameState struct {
+	engine.View
+	Room         string      `json:"room"`
+	ClosesInMs   int64       `json:"closes_in_ms,omitempty"`
+	Paused       *PausedView `json:"paused"`
+	Disconnected []string    `json:"disconnected"`
+}
+
+type PausedView struct {
+	WaitingFor  []string `json:"waiting_for"`
+	ResumesInMs int64    `json:"resumes_in_ms"`
+}
+
 type Update struct {
 	Type   string         `json:"type"`
-	State  engine.View    `json:"state"`
+	State  GameState      `json:"state"`
 	Events []engine.Event `json:"events"`
 }
 
-func NewUpdate(state engine.View, events []engine.Event) Update {
+type Welcome struct {
+	Type  string `json:"type"`
+	Room  string `json:"room"`
+	Token string `json:"token"`
+}
+
+func NewWelcome(room, token string) Welcome {
+	return Welcome{Type: "welcome", Room: room, Token: token}
+}
+
+func NewUpdate(state GameState, events []engine.Event) Update {
 	if events == nil {
 		events = []engine.Event{}
 	}

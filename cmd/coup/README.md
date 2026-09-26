@@ -16,9 +16,11 @@ go run ./cmd/coup join K7QM                   # entra na mesa K7QM com o nome sa
 |---|---|---|
 | `-server` | `ws://localhost:8080/ws`, ou o último usado | endereço WebSocket do servidor |
 | `-name` | o último usado | seu nome na mesa; obrigatório na primeira vez |
+| `-reconnect` | desligado | volta ao assento salvo (código e token do último `welcome`) |
 
 Sem código, `join` abre uma mesa nova — o mesmo que deixar o código vazio no navegador. Nome e
-servidor ficam em `~/.config/coup/session.json` (modo `0600`).
+servidor ficam em `~/.config/coup/session.json` (modo `0600`), junto com o código e o token do
+último assento, para o `-reconnect`.
 
 ## Flags do `serve`
 

@@ -23,6 +23,7 @@ func seatTable(t *testing.T, url string, names ...string) *table {
 	seated := map[string]*tab{names[0]: host}
 	for _, name := range names[1:] {
 		seated[name] = enterTable(t, url, host.room, name)
+		seated[name].token = seated[name].waitFor("welcome").Token
 	}
 	host.waitForSeats(len(names))
 	for _, name := range names {
@@ -39,6 +40,11 @@ func seatTable(t *testing.T, url string, names ...string) *table {
 
 func (a *tab) nextView() engine.View {
 	a.t.Helper()
+	return a.nextState().View
+}
+
+func (a *tab) nextState() protocol.GameState {
+	a.t.Helper()
 	for {
 		ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
 		_, encoded, err := a.conn.Read(ctx)
@@ -47,8 +53,8 @@ func (a *tab) nextView() engine.View {
 			a.t.Fatalf("%s received nothing within 2s: %v", a.name, err)
 		}
 		var arrived struct {
-			Type  string      `json:"type"`
-			State engine.View `json:"state"`
+			Type  string             `json:"type"`
+			State protocol.GameState `json:"state"`
 		}
 		if err := json.Unmarshal(encoded, &arrived); err != nil {
 			a.t.Fatalf("%s received json that does not decode: %v — %s", a.name, err, encoded)

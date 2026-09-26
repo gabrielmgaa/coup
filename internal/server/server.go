@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/coder/websocket"
@@ -22,22 +23,38 @@ const (
 	maxNameLength = 16
 )
 
-type registry struct {
-	mu           sync.Mutex
-	rooms        map[string]*Room
-	rng          *rand.Rand
-	initialCoins int
-	newCode      func() string
+type Config struct {
+	InitialCoins int
+	Deadline     time.Duration
+	Grace        time.Duration
+	IdleTTL      time.Duration
 }
 
-func newRegistry(rng *rand.Rand, initialCoins int) *registry {
-	desk := &registry{rooms: map[string]*Room{}, rng: rng, initialCoins: initialCoins}
+func DefaultConfig(initialCoins int) Config {
+	return Config{
+		InitialCoins: initialCoins,
+		Deadline:     25 * time.Second,
+		Grace:        30 * time.Second,
+		IdleTTL:      30 * time.Minute,
+	}
+}
+
+type registry struct {
+	mu      sync.Mutex
+	rooms   map[string]*Room
+	rng     *rand.Rand
+	config  Config
+	newCode func() string
+}
+
+func newRegistry(rng *rand.Rand, config Config) *registry {
+	desk := &registry{rooms: map[string]*Room{}, rng: rng, config: config}
 	desk.newCode = desk.drawCode
 	return desk
 }
 
-func New(site fs.FS, rng *rand.Rand, initialCoins int) http.Handler {
-	desk := newRegistry(rng, initialCoins)
+func New(site fs.FS, rng *rand.Rand, config Config) http.Handler {
+	desk := newRegistry(rng, config)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", desk.accept)
@@ -51,22 +68,31 @@ func (d *registry) roomFor(first protocol.FromClient) (*Room, *engine.Refusal) {
 
 	switch first.Type {
 	case "create_room":
-		opened := newRoom(d.seedRoom(), d.initialCoins, d.freeCode())
+		opened := newRoom(d.seedRoom(), d.config, d.freeCode(), d.forget)
 		d.rooms[opened.code] = opened
 		go opened.run()
 		return opened, nil
-	case "join":
+	case "join", "reconnect":
 		waiting, known := d.rooms[first.Room]
 		if !known {
-			return nil, &engine.Refusal{Code: "room_not_found",
-				Message:  "não existe sala com esse código",
-				Received: first.Room, Expected: "o código de uma sala aberta"}
+			return nil, roomNotFound(first.Room)
 		}
 		return waiting, nil
 	}
 	return nil, &engine.Refusal{Code: "illegal_action",
 		Message:  "a primeira mensagem precisa abrir uma sala ou entrar numa",
-		Received: first.Type, Expected: []string{"create_room", "join"}}
+		Received: first.Type, Expected: []string{"create_room", "join", "reconnect"}}
+}
+
+func roomNotFound(code string) *engine.Refusal {
+	return &engine.Refusal{Code: "room_not_found", Message: "não existe sala com esse código",
+		Received: code, Expected: "o código de uma sala aberta"}
+}
+
+func (d *registry) forget(code string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.rooms, code)
 }
 
 func (d *registry) freeCode() string {
@@ -102,10 +128,10 @@ func (d *registry) accept(w http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		refuseAndClose(ctx, conn, &engine.Refusal{Code: "illegal_action",
 			Message:  "a primeira mensagem não pôde ser lida",
-			Received: err.Error(), Expected: []string{"create_room", "join"}})
+			Received: err.Error(), Expected: []string{"create_room", "join", "reconnect"}})
 		return
 	}
-	if refusal := checkName(first.Name); refusal != nil {
+	if refusal := checkFirst(first); refusal != nil {
 		refuseAndClose(ctx, conn, refusal)
 		return
 	}
@@ -116,10 +142,26 @@ func (d *registry) accept(w http.ResponseWriter, request *http.Request) {
 	}
 
 	c := &connection{outbox: make(chan []byte, outboxCapacity)}
+	if !opened.deliver(command{from: c, message: admission(first)}) {
+		refuseAndClose(ctx, conn, roomNotFound(first.Room))
+		return
+	}
 	go write(ctx, conn, c)
-	opened.inbox <- command{from: c,
-		message: protocol.FromClient{Type: "join", Name: strings.TrimSpace(first.Name)}}
 	opened.read(ctx, conn, c)
+}
+
+func checkFirst(first protocol.FromClient) *engine.Refusal {
+	if first.Type == "reconnect" {
+		return nil
+	}
+	return checkName(first.Name)
+}
+
+func admission(first protocol.FromClient) protocol.FromClient {
+	if first.Type == "reconnect" {
+		return protocol.FromClient{Type: "reconnect", Token: first.Token}
+	}
+	return protocol.FromClient{Type: "join", Name: strings.TrimSpace(first.Name)}
 }
 
 func checkName(raw string) *engine.Refusal {
@@ -155,20 +197,23 @@ func (r *Room) read(ctx context.Context, conn *websocket.Conn, c *connection) {
 	for {
 		_, encoded, err := conn.Read(ctx)
 		if err != nil {
-			r.inbox <- command{from: c, message: protocol.FromClient{Type: "leave"}}
+			r.deliver(command{from: c, message: protocol.FromClient{Type: "leave"}})
 			return
 		}
 		var message protocol.FromClient
 		if err := json.Unmarshal(encoded, &message); err != nil {
 			message = protocol.FromClient{Type: "unreadable_json"}
 		}
-		r.inbox <- command{from: c, message: message}
+		if !r.deliver(command{from: c, message: message}) {
+			return
+		}
 	}
 }
 
 func write(ctx context.Context, conn *websocket.Conn, c *connection) {
 	for encoded := range c.outbox {
 		if err := conn.Write(ctx, websocket.MessageText, encoded); err != nil {
+			conn.CloseNow()
 			return
 		}
 	}

@@ -22,7 +22,7 @@ import (
 
 const defaultServer = "ws://localhost:8080/ws"
 
-var errUsage = errors.New("uso: coup serve [-port 8080] | coup join [-server URL] [-name NOME] [CÓDIGO]")
+var errUsage = errors.New("uso: coup serve [-port 8080] | coup join [-server URL] [-name NOME] [-reconnect] [CÓDIGO]")
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -58,7 +58,7 @@ func serve(args []string) error {
 	}
 	address := fmt.Sprintf(":%d", *port)
 	log.Printf("coup listening on http://localhost%s", address)
-	return http.ListenAndServe(address, server.New(web.Dist(), rng, *coins))
+	return http.ListenAndServe(address, server.New(web.Dist(), rng, server.DefaultConfig(*coins)))
 }
 
 func join(args []string) error {
@@ -74,23 +74,37 @@ func join(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := (tui.Session{Name: table.Name, Server: table.Server}).Save(path); err != nil {
+	if err := (tui.Session{Name: table.Name, Server: table.Server, Room: table.Room, Token: table.Token}).Save(path); err != nil {
 		return err
 	}
-	return tui.Play(context.Background(), table, tea.WithAltScreen())
+	remember := func(room, token string) error {
+		return tui.Session{Name: table.Name, Server: table.Server, Room: room, Token: token}.Save(path)
+	}
+	return tui.Play(context.Background(), table, remember, tea.WithAltScreen())
 }
 
 func tableFrom(args []string, saved tui.Session) (tui.Table, error) {
 	flags := flag.NewFlagSet("join", flag.ContinueOnError)
 	address := flags.String("server", firstFilled(saved.Server, defaultServer), "websocket address of the server")
 	name := flags.String("name", saved.Name, "your name at the table")
+	reconnect := flags.Bool("reconnect", false, "take back the seat saved in the session")
 	if err := flags.Parse(args); err != nil {
 		return tui.Table{}, err
+	}
+	if *reconnect {
+		return rejoinedTable(*address, saved)
 	}
 	if strings.TrimSpace(*name) == "" {
 		return tui.Table{}, errors.New("informe seu nome com -name na primeira vez")
 	}
 	return tui.Table{Server: *address, Name: *name, Room: strings.ToUpper(flags.Arg(0))}, nil
+}
+
+func rejoinedTable(address string, saved tui.Session) (tui.Table, error) {
+	if saved.Token == "" {
+		return tui.Table{}, errors.New("não há mesa salva para voltar; entre com um código")
+	}
+	return tui.Table{Server: address, Name: saved.Name, Room: saved.Room, Token: saved.Token}, nil
 }
 
 func firstFilled(values ...string) string {

@@ -67,7 +67,7 @@ func TestMalformedMovesAreRefusedBeforeReachingTheEngine(t *testing.T) {
 }
 
 func TestAnUpdateNeverCarriesNullEvents(t *testing.T) {
-	encoded, _ := json.Marshal(NewUpdate(engine.View{}, nil))
+	encoded, _ := json.Marshal(NewUpdate(GameState{}, nil))
 	if !strings.Contains(string(encoded), `"events":[]`) {
 		t.Errorf("the update serialized as %s, expected an empty events list", encoded)
 	}

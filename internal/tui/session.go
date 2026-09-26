@@ -11,6 +11,8 @@ import (
 type Session struct {
 	Name   string `json:"name"`
 	Server string `json:"server"`
+	Room   string `json:"room,omitempty"`
+	Token  string `json:"token,omitempty"`
 }
 
 func SessionPath() (string, error) {

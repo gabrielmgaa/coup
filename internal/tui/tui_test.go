@@ -23,7 +23,8 @@ const startingCoinsForThreeCoups = 14
 
 func startServer(t *testing.T) string {
 	t.Helper()
-	running := httptest.NewServer(server.New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)), startingCoinsForThreeCoups))
+	running := httptest.NewServer(server.New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)),
+		server.Config{InitialCoins: startingCoinsForThreeCoups, Deadline: time.Hour, Grace: time.Hour, IdleTTL: time.Hour}))
 	t.Cleanup(running.Close)
 	return "ws" + strings.TrimPrefix(running.URL, "http") + "/ws"
 }
@@ -46,7 +47,7 @@ func openTerminal(t *testing.T, address string, first protocol.FromClient) *term
 	if err := opened.write(first); err != nil {
 		t.Fatalf("the first message did not leave: %v", err)
 	}
-	return &terminal{t: t, link: opened, model: NewModel(opened.outgoing, opened.receive)}
+	return &terminal{t: t, link: opened, model: NewModel(opened.outgoing, opened.receive, func(string, string) tea.Cmd { return nil })}
 }
 
 func (term *terminal) deliver(msg tea.Msg) tea.Cmd {
@@ -138,8 +139,8 @@ func (b *browser) until(done func(engine.View) bool) engine.View {
 		if err != nil {
 			b.t.Fatalf("the browser received json it cannot read: %v", err)
 		}
-		if update, isUpdate := decoded.(updateArrived); isUpdate && done(update.state) {
-			return update.state
+		if update, isUpdate := decoded.(updateArrived); isUpdate && done(update.state.View) {
+			return update.state.View
 		}
 	}
 }
@@ -179,7 +180,7 @@ func TestTerminalAndBrowserPlayTheSameGameToTheEnd(t *testing.T) {
 }
 
 func playOneStep(cli *terminal, web *browser) {
-	state := *cli.model.game
+	state := cli.model.game.View
 	switch {
 	case state.Losing == "tester1":
 		cli.pick("revelar " + entryOf(state, "tester1").MyCards[0].LabelPtBR())
@@ -207,7 +208,7 @@ func TestATerminalNeverDrawsSomeoneElsesCards(t *testing.T) {
 		{Name: "tester1", Hidden: 2, MyCards: []engine.Character{engine.Duke, engine.Captain}},
 		{Name: "tester2", Hidden: 1, Revealed: []engine.Character{engine.Contessa}},
 	}}
-	screen := Model{game: &state}.View()
+	screen := Model{game: &protocol.GameState{View: state}}.View()
 	for _, own := range []string{"Duque", "Capitão", "Condessa"} {
 		if !strings.Contains(screen, own) {
 			t.Errorf("the screen is missing %q, which tester1 is allowed to see:\n%s", own, screen)
@@ -237,9 +238,9 @@ func TestTheCursorStaysInsideTheList(t *testing.T) {
 	model := NewModel(func(message protocol.FromClient) tea.Cmd {
 		sent = append(sent, message)
 		return nil
-	}, nil)
+	}, nil, nil)
 	state := engine.View{You: "tester1", TurnOf: "tester1", YourActions: []engine.AvailableAction{{Name: "income"}}}
-	updated, _ := model.Update(updateArrived{state: state})
+	updated, _ := model.Update(updateArrived{state: protocol.GameState{View: state}})
 	for _, key := range []tea.KeyMsg{
 		{Type: tea.KeyUp}, {Type: tea.KeyDown}, {Type: tea.KeyDown}, {Type: tea.KeyEnter},
 	} {
@@ -254,16 +255,16 @@ func TestWithNothingToChooseEnterSendsNothing(t *testing.T) {
 	model := NewModel(func(protocol.FromClient) tea.Cmd {
 		t.Error("something was sent while there was nothing to choose")
 		return nil
-	}, nil)
+	}, nil, nil)
 	state := engine.View{You: "tester2", TurnOf: "tester1"}
-	updated, _ := model.Update(updateArrived{state: state})
+	updated, _ := model.Update(updateArrived{state: protocol.GameState{View: state}})
 	if _, cmd := updated.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd != nil {
 		t.Error("enter produced a command with nothing on screen to choose")
 	}
 }
 
 func TestARefusalShowsUpAndExplainsTheDisconnect(t *testing.T) {
-	model := NewModel(nil, nil)
+	model := NewModel(nil, nil, nil)
 	updated, _ := model.Update(refusalArrived{message: "não existe sala com esse código"})
 	if screen := updated.View(); !strings.Contains(screen, "não existe sala com esse código") {
 		t.Errorf("the refusal is not on screen:\n%s", screen)
@@ -279,7 +280,7 @@ func TestARefusalShowsUpAndExplainsTheDisconnect(t *testing.T) {
 
 func TestQuittingLeavesWithoutAnError(t *testing.T) {
 	for _, key := range []tea.KeyMsg{{Type: tea.KeyCtrlC}, {Type: tea.KeyRunes, Runes: []rune("q")}} {
-		updated, cmd := NewModel(nil, nil).Update(key)
+		updated, cmd := NewModel(nil, nil, nil).Update(key)
 		if cmd == nil {
 			t.Errorf("%q did not quit", key.String())
 		}
@@ -290,7 +291,7 @@ func TestQuittingLeavesWithoutAnError(t *testing.T) {
 }
 
 func TestPlayReturnsWhenTheServerIsNotThere(t *testing.T) {
-	err := Play(context.Background(), Table{Server: "ws://127.0.0.1:1/ws", Name: "tester1"})
+	err := Play(context.Background(), Table{Server: "ws://127.0.0.1:1/ws", Name: "tester1"}, nil)
 	if err == nil {
 		t.Error("Play returned no error for a server that does not exist")
 	}
@@ -298,7 +299,7 @@ func TestPlayReturnsWhenTheServerIsNotThere(t *testing.T) {
 
 func TestPlayRunsUntilTheRoomRefusesTheCode(t *testing.T) {
 	address := startServer(t)
-	err := Play(context.Background(), Table{Server: address, Name: "tester1", Room: "ZZZZ"},
+	err := Play(context.Background(), Table{Server: address, Name: "tester1", Room: "ZZZZ"}, nil,
 		tea.WithInput(strings.NewReader("")), tea.WithOutput(&strings.Builder{}), tea.WithoutRenderer())
 	if err == nil || err.Error() != "não existe sala com esse código" {
 		t.Errorf("Play ended with %v, expected the room_not_found message", err)
@@ -353,7 +354,7 @@ func TestAnOpenWindowOffersExactlyTheServerOptions(t *testing.T) {
 	if challenge.Type != "respond" || challenge.Window != 4 || challenge.Answer != "challenge" || challenge.Character != "" {
 		t.Errorf("challenging sends %+v, expected respond to window 4 with no character", challenge)
 	}
-	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "esperando tester2, tester3") {
+	if screen := (Model{game: &protocol.GameState{View: state}}).View(); !strings.Contains(screen, "esperando tester2, tester3") {
 		t.Errorf("the screen does not say who the window waits on:\n%s", screen)
 	}
 }
@@ -369,7 +370,7 @@ func TestABlockWindowLabelsTheChallengeAgainstTheBlocker(t *testing.T) {
 	if labels := labelsOf(gameChoices(state)); labels[0] != "contestar o Duque de tester3" {
 		t.Errorf("the terminal offers %v, expected to challenge tester3's duke", labels)
 	}
-	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "tester3 bloqueou com Duque") {
+	if screen := (Model{game: &protocol.GameState{View: state}}).View(); !strings.Contains(screen, "tester3 bloqueou com Duque") {
 		t.Errorf("the screen does not show the block:\n%s", screen)
 	}
 	blocking := responseChoices(engine.WindowView{ID: 8, YourOptions: []engine.Option{{Answer: engine.Block, Character: engine.Duke}}})
@@ -388,11 +389,97 @@ func TestAnExchangeOffersEachPairAsOneChoice(t *testing.T) {
 	if sent := offered[1].message; sent.Type != "return_cards" || len(sent.Cards) != 2 || sent.Cards[0] != "duke" {
 		t.Errorf("the second choice sends %+v, expected return_cards [duke duke]", sent)
 	}
-	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "escolha as 2 cartas") {
+	if screen := (Model{game: &protocol.GameState{View: state}}).View(); !strings.Contains(screen, "escolha as 2 cartas") {
 		t.Errorf("the screen does not ask which cards go back:\n%s", screen)
 	}
 	state.You, state.YourReturns = "tester2", nil
-	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "tester1 está escolhendo cartas") {
+	if screen := (Model{game: &protocol.GameState{View: state}}).View(); !strings.Contains(screen, "tester1 está escolhendo cartas") {
 		t.Errorf("the other seats are not told the exchange is under way:\n%s", screen)
+	}
+}
+
+func TestTheTerminalRemembersItsSeatAndComesBackToIt(t *testing.T) {
+	address := startServer(t)
+	cli := openTerminal(t, address, protocol.FromClient{Type: "create_room", Name: "tester1"})
+	var room, token string
+	cli.model.remember = func(gotRoom, gotToken string) tea.Cmd {
+		room, token = gotRoom, gotToken
+		return nil
+	}
+	cli.until(func(m Model) bool { return m.lobby != nil })
+	if room == "" || token == "" || room != cli.model.lobby.Room {
+		t.Fatalf("the terminal remembered room %q and token %q, expected the lobby's room and a token", room, token)
+	}
+	web := openBrowser(t, address, protocol.FromClient{Type: "join", Room: room, Name: "tester2"})
+	cli.until(func(m Model) bool { return len(m.lobby.Players) == 2 })
+	web.send(protocol.FromClient{Type: "ready", Ready: true})
+	cli.pick("estou pronto")
+	cli.until(func(m Model) bool { return m.lobby.Players[0].Ready && m.lobby.Players[1].Ready })
+	cli.pick("começar a partida")
+	cli.until(func(m Model) bool { return m.game != nil })
+	cli.link.close()
+
+	table := Table{Server: address, Room: room, Token: token}
+	back := openTerminal(t, address, table.firstMessage())
+	back.until(func(m Model) bool { return m.game != nil })
+	if back.model.game.You != "tester1" || len(back.model.game.Disconnected) != 0 {
+		t.Errorf("the terminal came back as %q with %v disconnected, expected tester1 and nobody out",
+			back.model.game.You, back.model.game.Disconnected)
+	}
+}
+
+func TestAPausedTableShowsWhoItWaitsFor(t *testing.T) {
+	state := protocol.GameState{
+		View:         engine.View{You: "tester2", TurnOf: "tester1", Players: []engine.PlayerView{{Name: "tester1"}, {Name: "tester2"}}},
+		Paused:       &protocol.PausedView{WaitingFor: []string{"tester1"}, ResumesInMs: 30000},
+		Disconnected: []string{"tester1"},
+	}
+	screen := Model{game: &state}.View()
+	for _, expected := range []string{"mesa pausada esperando tester1 voltar (30s)", "tester1 (caiu)"} {
+		if !strings.Contains(screen, expected) {
+			t.Errorf("the screen is missing %q:\n%s", expected, screen)
+		}
+	}
+}
+
+func TestTheCountdownIsDrawnFromTheSnapshot(t *testing.T) {
+	model := NewModel(nil, nil, nil)
+	state := protocol.GameState{View: engine.View{You: "tester1", TurnOf: "tester1"}, ClosesInMs: 25000}
+	updated, _ := model.Update(updateArrived{state: state})
+	if screen := updated.View(); !strings.Contains(screen, "s para decidir") {
+		t.Errorf("the screen has no countdown:\n%s", screen)
+	}
+	if _, cmd := updated.Update(tickArrived{}); cmd == nil {
+		t.Error("a tick did not schedule the next one; the countdown would freeze")
+	}
+}
+
+func TestAFailedSessionSaveIsShownWithoutStoppingTheGame(t *testing.T) {
+	failing := rememberCmd(func(string, string) error { return os.ErrPermission })
+	msg := failing("K7QM", "token")()
+	updated, cmd := NewModel(nil, nil, nil).Update(msg)
+	if cmd != nil {
+		t.Error("a failed save produced a command; it must not start a second reader")
+	}
+	if screen := updated.View(); !strings.Contains(screen, "não deu para salvar a sessão") {
+		t.Errorf("the failed save is not on screen:\n%s", screen)
+	}
+	if saved := rememberCmd(func(string, string) error { return nil })("K7QM", "token")(); saved != nil {
+		t.Errorf("a successful save produced message %v, expected none", saved)
+	}
+}
+
+func TestTheFirstMessageDependsOnWhatTheTableKnows(t *testing.T) {
+	for _, scenario := range []struct {
+		table    Table
+		expected string
+	}{
+		{Table{Name: "tester1"}, "create_room"},
+		{Table{Name: "tester1", Room: "K7QM"}, "join"},
+		{Table{Room: "K7QM", Token: "secret"}, "reconnect"},
+	} {
+		if first := scenario.table.firstMessage(); first.Type != scenario.expected {
+			t.Errorf("%+v opens with %q, expected %q", scenario.table, first.Type, scenario.expected)
+		}
 	}
 }

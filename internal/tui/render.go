@@ -2,7 +2,9 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gabrielmgaa/coup/internal/engine"
@@ -25,7 +27,7 @@ func (m Model) View() string {
 	sections := []string{titleStyle.Render("COUP")}
 	switch {
 	case m.game != nil:
-		sections = append(sections, renderTable(*m.game), renderStatus(*m.game), renderLog(m.log))
+		sections = append(sections, renderTable(*m.game), renderStatus(m.game.View), m.renderClock(), renderLog(m.log))
 	case m.lobby != nil:
 		sections = append(sections, renderLobby(*m.lobby))
 	default:
@@ -62,10 +64,10 @@ func seatTags(lobby protocol.LobbyView, name string) string {
 	return tags
 }
 
-func renderTable(state engine.View) string {
+func renderTable(state protocol.GameState) string {
 	seats := make([]string, 0, len(state.Players))
 	for _, seen := range state.Players {
-		seats = append(seats, seatStyle(state, seen).Render(renderSeat(state, seen)))
+		seats = append(seats, seatStyle(state.View, seen).Render(renderSeat(state, seen)))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, seats...)
 }
@@ -80,10 +82,13 @@ func seatStyle(state engine.View, seen engine.PlayerView) lipgloss.Style {
 	return boxStyle
 }
 
-func renderSeat(state engine.View, seen engine.PlayerView) string {
+func renderSeat(state protocol.GameState, seen engine.PlayerView) string {
 	name := seen.Name
 	if seen.Name == state.You {
 		name += " (você)"
+	}
+	if slices.Contains(state.Disconnected, seen.Name) {
+		name += " (caiu)"
 	}
 	return strings.Join([]string{name, fmt.Sprintf("%d moedas", seen.Coins), renderCards(seen)}, "\n")
 }
@@ -131,6 +136,17 @@ func renderWindow(window engine.WindowView) string {
 		declared += fmt.Sprintf("; %s bloqueou com %s", window.Block.By, window.Block.Character.LabelPtBR())
 	}
 	return declared + " — esperando " + strings.Join(window.WaitingOn, ", ")
+}
+
+func (m Model) renderClock() string {
+	if m.game.Paused != nil {
+		return refusalStyle.Render(fmt.Sprintf("mesa pausada esperando %s voltar (%ds)",
+			strings.Join(m.game.Paused.WaitingFor, ", "), m.game.Paused.ResumesInMs/1000))
+	}
+	if m.game.ClosesInMs == 0 {
+		return ""
+	}
+	return faintStyle.Render(fmt.Sprintf("%ds para decidir", max(0, int(time.Until(m.closesAt).Seconds()))))
 }
 
 func renderLog(events []engine.Event) string {

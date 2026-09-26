@@ -19,6 +19,7 @@ import (
 type received struct {
 	Type     string `json:"type"`
 	Code     string `json:"code"`
+	Token    string `json:"token"`
 	Received any    `json:"received"`
 	Expected any    `json:"expected"`
 	State    struct {
@@ -65,10 +66,11 @@ func (r received) readyOf(t *testing.T, name string) bool {
 }
 
 type tab struct {
-	t    *testing.T
-	conn *websocket.Conn
-	room string
-	name string
+	t     *testing.T
+	conn  *websocket.Conn
+	room  string
+	name  string
+	token string
 }
 
 func startServer(t *testing.T) string {
@@ -76,9 +78,18 @@ func startServer(t *testing.T) string {
 	return startServerWithCoins(t, engine.RulebookCoins)
 }
 
+func calmConfig(startingCoins int) Config {
+	return Config{InitialCoins: startingCoins, Deadline: time.Hour, Grace: time.Hour, IdleTTL: time.Hour}
+}
+
 func startServerWithCoins(t *testing.T, startingCoins int) string {
 	t.Helper()
-	running := httptest.NewServer(New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)), startingCoins))
+	return startServerWith(t, calmConfig(startingCoins))
+}
+
+func startServerWith(t *testing.T, config Config) string {
+	t.Helper()
+	running := httptest.NewServer(New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)), config))
 	t.Cleanup(running.Close)
 	return "ws" + strings.TrimPrefix(running.URL, "http") + "/ws"
 }
@@ -100,9 +111,14 @@ func createTable(t *testing.T, url, name string) *tab {
 	opened := dial(t, url)
 	opened.name = name
 	opened.send(protocol.FromClient{Type: "create_room", Name: name})
+	welcome := opened.receive()
+	if welcome.Type != "welcome" || welcome.Token == "" {
+		t.Fatalf("create_room answered %q with token %q, expected a welcome carrying one", welcome.Type, welcome.Token)
+	}
+	opened.token = welcome.Token
 	opening := opened.receive()
 	if opening.Type != "lobby" {
-		t.Fatalf("create_room answered %q, expected lobby", opening.Type)
+		t.Fatalf("create_room answered %q after the welcome, expected lobby", opening.Type)
 	}
 	opened.room = opening.State.Room
 	return opened
@@ -305,7 +321,7 @@ func TestARoomCodeIsFourCharactersWithNoLookalikes(t *testing.T) {
 	if len(tester1.room) != 4 {
 		t.Errorf("the room code %q has %d characters, expected 4", tester1.room, len(tester1.room))
 	}
-	desk := newRegistry(rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
+	desk := newRegistry(rand.New(rand.NewPCG(1, 2)), calmConfig(engine.RulebookCoins))
 	for range 200 {
 		code := desk.newCode()
 		if len(code) != 4 {
@@ -323,7 +339,7 @@ func TestARoomCodeIsFourCharactersWithNoLookalikes(t *testing.T) {
 }
 
 func TestARepeatedCodeDoesNotStealTheRoomThatAlreadyHasIt(t *testing.T) {
-	desk := newRegistry(rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
+	desk := newRegistry(rand.New(rand.NewPCG(1, 2)), calmConfig(engine.RulebookCoins))
 	drawn := []string{"K7QM", "K7QM", "K7QN"}
 	desk.newCode = func() string {
 		next := drawn[0]
@@ -337,6 +353,7 @@ func TestARepeatedCodeDoesNotStealTheRoomThatAlreadyHasIt(t *testing.T) {
 	}
 	tester1 := &connection{outbox: make(chan []byte, outboxCapacity)}
 	first.inbox <- command{from: tester1, message: protocol.FromClient{Type: "join", Name: "tester1"}}
+	<-tester1.outbox
 	opening := decodeLobby(t, <-tester1.outbox)
 	if opening.State.Room != "K7QM" {
 		t.Fatalf("the first room got code %q, expected K7QM", opening.State.Room)
@@ -355,6 +372,7 @@ func TestARepeatedCodeDoesNotStealTheRoomThatAlreadyHasIt(t *testing.T) {
 	tester2 := &connection{outbox: make(chan []byte, outboxCapacity)}
 	first.inbox <- command{from: tester2, message: protocol.FromClient{Type: "join", Name: "tester2"}}
 	<-tester1.outbox
+	<-tester2.outbox
 	stillThere := decodeLobby(t, <-tester2.outbox)
 	if seated := stillThere.names(); len(seated) != 2 || seated[0] != "tester1" {
 		t.Errorf("K7QM holds %v, expected tester1 still in her seat", seated)
@@ -628,10 +646,11 @@ func TestARefusalOnlyReachesThePlayerWhoCausedIt(t *testing.T) {
 }
 
 func TestAClientThatStopsReadingIsDropped(t *testing.T) {
-	room := newRoom(rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins, "K7QM")
-	stalled := &connection{name: "tester2", outbox: make(chan []byte, outboxCapacity)}
-	attentive := &connection{name: "tester1", outbox: make(chan []byte, outboxCapacity)}
-	room.connections = []*connection{attentive, stalled}
+	room := newRoom(rand.New(rand.NewPCG(1, 2)), calmConfig(engine.RulebookCoins), "K7QM", func(string) {})
+	stalled := &connection{outbox: make(chan []byte, outboxCapacity)}
+	attentive := &connection{outbox: make(chan []byte, outboxCapacity)}
+	room.seats = []*seat{{name: "tester1", conn: attentive}, {name: "tester2", conn: stalled}}
+	attentive.seat, stalled.seat = room.seats[0], room.seats[1]
 	dealt, err := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
 	if err != nil {
 		t.Fatalf("the two player game was refused: %v", err)
@@ -653,10 +672,10 @@ func TestAClientThatStopsReadingIsDropped(t *testing.T) {
 		t.Fatal("broadcast blocked on the client that stopped reading")
 	}
 
-	if len(room.connections) != 1 || room.connections[0] != attentive {
-		t.Errorf("the room kept %d connections, expected only the attentive one", len(room.connections))
-	}
 	if !stalled.closed {
 		t.Error("the stalled connection was not closed")
+	}
+	if attentive.closed {
+		t.Error("the attentive connection was closed along with the stalled one")
 	}
 }

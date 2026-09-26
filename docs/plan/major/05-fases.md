@@ -214,7 +214,7 @@ transcrever o exemplo para `01-regras.md`.
 
 ---
 
-## 0.8 — Tempo e rede real
+## 0.8 — Tempo e rede real — **pronta**
 
 Até aqui ninguém esperou nada e ninguém caiu.
 
@@ -229,7 +229,26 @@ bits; `reconnect` devolvendo o snapshot atual; TTL de 30 min.
 
 **Pronto quando:** você fecha uma aba no meio de uma janela, vê a mesa pausar nas outras,
 reabre dentro dos 30 s e volta ao jogo com 25 s cheios; repete deixando estourar e vê a
-partida seguir sem você; e `go test -race ./...` passa limpo.
+partida seguir sem você; e `go test -race ./...` passa limpo. ✅ `clock_test.go` roda os dois
+roteiros pelo WebSocket com prazos curtos (`TestReconnectingWithinTheGraceResumesWithAFullDeadline`,
+`TestAfterTheGraceTheTablePlaysOnWithoutPausingAgain`), e `-race` passa.
+
+**Decisões tomadas na execução:**
+
+- **Sem `engine.Timeout`.** O motor expõe `Decision()`, `Awaiting()` e `SafeMove(name)`; o
+  servidor descarta prazo velho comparando o ID que o timer carrega com `Decision()`. O motor
+  continua sem saber que existe relógio, e o default seguro de cada fase é regra — mora no motor.
+- **O prazo vale para toda decisão**, não só janela (Q16): turno parado vira Renda.
+- **`reconnect` leva `room` e `token`.** O token segue opaco (128 bits de `crypto/rand`); o código
+  diz em que sala procurar sem um mapa global de tokens.
+- **`welcome` leva `room` também**, para o cliente salvar os dois de uma vez.
+- **Campos de sala no snapshot** (`room`, `closes_in_ms`, `paused`, `disconnected`) vivem em
+  `protocol.GameState`, que embute o `engine.View` sem remodelar nada. `disconnected` é lista no
+  topo, não um `connected` por jogador.
+- **Sem eventos de sala** (`player_dropped`, `room_paused`…): a numeração `n` é do motor, e o
+  snapshot já mostra quem caiu e se está pausado.
+- **A CLI não reconecta sozinha**: cai, sai com a mensagem, e `coup join -reconnect` volta ao
+  assento salvo. O navegador tenta sozinho, uma vez por segundo, por até 30 tentativas.
 
 ---
 

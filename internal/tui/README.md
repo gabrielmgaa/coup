@@ -13,7 +13,7 @@ chega e manda de volta o que foi escolhido**. Não tem regra de Coup aqui dentro
 | `model.go` | `Model`, `Init`, `Update`: teclas movem o cursor, enter manda a escolha |
 | `choices.go` | a lista de escolhas desenhada a partir de `your_actions` (e do lobby); rótulos em pt-BR |
 | `render.go` | `View`: mesa, status, log e escolhas, com Lipgloss |
-| `session.go` | `~/.config/coup/session.json` — nome e servidor, para não digitar de novo |
+| `session.go` | `~/.config/coup/session.json` — nome, servidor, e o código e token do último assento |
 
 ## O que não pode quebrar
 

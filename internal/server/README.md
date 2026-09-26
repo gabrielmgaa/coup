@@ -7,13 +7,17 @@ mora o desenho de concorrência inteiro do projeto.
 
 | | |
 |---|---|
-| `server.go` | o `registry` de salas, o sorteio de código, a validação de nome, e `accept`/`read`/`write` — a vida de uma conexão |
-| `room.go` | `Room`, o actor: `run`, `join`, `markReady`, `start`, `play`, `broadcast`, `refuse`, `send`, `remove` |
+| `server.go` | `Config` (prazos), o `registry` de salas, o sorteio de código, a validação de nome, e `accept`/`read`/`write` — a vida de uma conexão |
+| `room.go` | `Room`, o actor: `run`, `handle`, `admit`, `markReady`, `start`, `play`, `afterChange` e o piloto automático |
+| `seat.go` | `seat` (nome, token, pronto, conexão) e `connection`; `join`, `reconnect`, `disconnect` |
+| `clock.go` | os três timers — prazo da decisão, carência da pausa, TTL da sala vazia — e o que cada um faz ao disparar |
+| `broadcast.go` | `broadcast`, o snapshot de cada assento (`GameState`), `refuse`, `turnAway`, `send` |
 
 ## Onde a conexão entra
 
 O endereço é sempre `/ws`, sem query param. **A primeira mensagem decide a sala**: `create_room`
-abre uma nova e devolve o código no primeiro `lobby`; `join` carrega o código de quem já tem um.
+abre uma nova, `join` carrega o código de quem já tem um, `reconnect` carrega código e token.
+Quem senta recebe `welcome` com o código e o token do assento — só ele recebe.
 `accept` lê essa primeira mensagem, valida o nome (2–16 caracteres, aparado) e só então entrega
 a conexão ao goroutine da sala. Nome inválido nunca cria sala órfã, porque a checagem vem antes
 do registro.
@@ -45,13 +49,35 @@ escritora (outbox → socket). Leitura bloqueante é Go normal; o runtime estaci
   derrubada por caminhos diferentes no mesmo instante.
 - **O host é `connections[0]`, não um campo.** A lista está em ordem de chegada, então o host
   novo aparece sozinho quando o antigo sai — desde que a escolha venha *depois* da remoção.
-- **Sair do lobby difunde.** `remove` chama `broadcast` enquanto não há partida; sem isso a lista
-  das outras telas nunca encolhe e o host fica esperando o pronto de quem já foi embora.
+- **Sair do lobby difunde.** Cair no lobby remove o assento e todo mundo recebe a lista nova.
+- **Uma conexão só entra uma vez.** Enquanto não tem assento, ela só pode mandar `join` ou
+  `reconnect` (`admit`); depois de sentada, esses dois tipos viram `illegal_action`. Sem isso, um
+  cliente trocaria de nome no meio da sala ou tentaria o token de outra pessoa pela conexão que
+  já tem.
+- **A jogada é assinada pelo assento, nunca pela mensagem.** `ToMove` recebe o nome do assento
+  da conexão; um campo `name` ou `by` mandado pelo cliente é ignorado.
+- **Timer é só mais um `command`.** `time.AfterFunc` entrega um `expiry` no inbox, com o ID de
+  quem o armou. Chegando velho — decisão que já mudou, pausa que já acabou, sala que voltou a
+  ter gente — é jogado fora. `expiry` não tem representação JSON: cliente nenhum consegue forjar.
 
-## Estado de hoje (0.2)
+## Tempo e queda (0.8)
 
-Salas de verdade, com código de 4 caracteres sem `O`, `0`, `I` e `1`; lobby com pronto e host;
-teto de 6. Ainda **não** existe: prazo por janela, detecção de queda no meio da partida, pausa,
-reconexão e TTL de sala — uma sala vazia continua viva até o processo morrer, e isso fecha na
-0.8. `remove` no meio de uma partida tira a conexão e não difunde, porque decidir o que a mesa
-vê quando alguém cai é justamente o assunto da 0.8.
+- **Prazo:** toda decisão tem `Deadline` (25 s). Estourou, o servidor aplica `engine.SafeMove`
+  por cada um que a partida espera: Renda no turno (Golpe se tiver 10+), passar na janela, a
+  primeira carta na perda de influência, devolver as duas compradas na troca.
+- **Pausa só quando a partida depende de quem caiu.** Queda de quem não tem decisão pendente só
+  aparece em `disconnected`. Queda de quem tem para o prazo e abre `Grace` (30 s).
+- **Voltou dentro da carência:** `reconnect` com o token do `welcome`, snapshot atual, e o prazo
+  reinicia cheio. **Não voltou:** o assento vira piloto automático — a partida joga o
+  `SafeMove` dele na hora, sem pausar de novo. Voltando depois, retoma o assento e o piloto
+  desliga; cair de novo dá direito a pausa nova.
+- **Reconectar com a aba antiga aberta** toma o assento dela: a conexão antiga perde o assento e
+  é fechada.
+- **TTL:** sala sem nenhuma conexão viva por `IdleTTL` (30 min) fecha, sai do `registry`, e quem
+  tentar entrar recebe `room_not_found`. `deliver` usa `done` para nunca travar mandando para
+  uma sala que já fechou.
+
+## Estado de hoje (0.8)
+
+Salas com código de 4 caracteres sem `O`, `0`, `I` e `1`; lobby com pronto e host; teto de 6;
+prazo por decisão, pausa, reconexão por token e TTL. O fim da partida volta para o lobby na 0.9.
