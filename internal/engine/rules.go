@@ -11,6 +11,8 @@ const (
 	Coup
 	Tax
 	Assassinate
+	Steal
+	Exchange
 )
 
 type Rule struct {
@@ -19,13 +21,14 @@ type Rule struct {
 	Claims      Character
 	NeedsTarget bool
 	BlockedBy   []Character
+	ValidTarget func(target *player) bool
 	Declaration string
 	Effect      func(g *Game, by, target int) []Event
 }
 
 func (r Rule) challengeable() bool { return r.Claims != NoCharacter }
 
-var actionOrderForDeterministicView = []ActionType{Income, ForeignAid, Tax, Assassinate, Coup}
+var actionOrderForDeterministicView = []ActionType{Income, ForeignAid, Tax, Exchange, Steal, Assassinate, Coup}
 
 var rules = map[ActionType]Rule{
 	Income: {
@@ -54,6 +57,21 @@ var rules = map[ActionType]Rule{
 		Declaration: "%[1]s pagou 3 e alegou Assassino contra %[2]s.",
 		Effect:      targetLosesInfluence,
 	},
+	Steal: {
+		Name:        "steal",
+		Claims:      Captain,
+		NeedsTarget: true,
+		BlockedBy:   []Character{Captain, Ambassador},
+		ValidTarget: hasCoins,
+		Declaration: "%[1]s alegou Capitão para extorquir %[2]s.",
+		Effect:      steal,
+	},
+	Exchange: {
+		Name:        "exchange",
+		Claims:      Ambassador,
+		Declaration: "%[1]s alegou Embaixador para trocar cartas.",
+		Effect:      drawForExchange,
+	},
 	Coup: {
 		Name:        "coup",
 		Cost:        7,
@@ -73,6 +91,25 @@ func gainCoins(amount int) func(g *Game, by, target int) []Event {
 
 func targetLosesInfluence(g *Game, _, target int) []Event {
 	return g.loseInfluenceThen(target, endTurn)
+}
+
+func hasCoins(target *player) bool { return target.coins > 0 }
+
+func steal(g *Game, by, target int) []Event {
+	taken := min(maxStolenCoins, g.players[target].coins)
+	g.players[target].coins -= taken
+	g.players[by].coins += taken
+	stolen := g.narrate("coins_stolen", fmt.Sprintf("%s tirou %s de %s.",
+		g.players[by].name, coinsPtBR(taken), g.players[target].name))
+	return append([]Event{stolen}, g.proceed(endTurn)...)
+}
+
+func drawForExchange(g *Game, by, _ int) []Event {
+	g.players[by].hand = append(g.players[by].hand, g.deck[:exchangeDraw]...)
+	g.deck = g.deck[exchangeDraw:]
+	g.phase = AwaitingExchange
+	g.decision++
+	return []Event{g.narrate("cards_drawn", fmt.Sprintf("%s comprou 2 cartas do baralho.", g.players[by].name))}
 }
 
 func coinsPtBR(amount int) string {

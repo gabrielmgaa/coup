@@ -33,6 +33,7 @@ export type View = {
   players: PlayerView[]
   window: WindowView | null
   your_actions: AvailableAction[]
+  your_returns?: string[][]
 }
 
 export type GameEvent = { n: number; type: string; text: string }
@@ -62,12 +63,15 @@ export type FromClient =
   | { type: 'play'; action: string; target?: string }
   | { type: 'lose_influence'; card: string }
   | { type: 'respond'; window: number; answer: Option['answer']; character?: string }
+  | { type: 'return_cards'; cards: string[] }
 
 const actionLabels: Record<string, string> = {
   income: 'renda',
   foreign_aid: 'ajuda externa',
   tax: 'taxas',
   assassinate: 'assassinar',
+  steal: 'extorquir',
+  exchange: 'trocar',
   coup: 'golpe',
 }
 

@@ -31,7 +31,7 @@ Mesmo motivo do snapshot em vez de delta: **regra e estado moram no servidor, po
 | `ready` | `ready: bool` | Só no lobby | **0.2** |
 | `start` | — | Só o host, só com todos prontos e ≥2 jogadores | **0.2** |
 | `respond` | `window`, `answer`, `character?` | `answer` ∈ `challenge` / `block` / `pass` | **0.4** |
-| `return_cards` | `cards: [duas]` | Após Trocar (Embaixador) | 0.7 |
+| `return_cards` | `cards: [duas]` | Após Trocar (Embaixador); os pares válidos chegam em `your_returns` | **0.7** |
 | `reconnect` | `token` | Retomar a sessão de antes | 0.8 |
 
 `character` só acompanha `block`, porque Extorsão aceita dois bloqueadores diferentes

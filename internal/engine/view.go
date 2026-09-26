@@ -10,6 +10,7 @@ type View struct {
 	Players       []PlayerView      `json:"players"`
 	Window        *WindowView       `json:"window"`
 	YourActions   []AvailableAction `json:"your_actions"`
+	YourReturns   [][]Character     `json:"your_returns,omitempty"`
 }
 
 type WindowView struct {
@@ -65,6 +66,9 @@ func ViewFor(g *Game, name string) View {
 	snapshot.Window = g.windowAsSeenBy(name)
 	if g.phase == AwaitingAction && g.players[g.turn].name == name {
 		snapshot.YourActions = g.actionsFor(g.turn)
+	}
+	if g.phase == AwaitingExchange && g.players[g.pending.by].name == name {
+		snapshot.YourReturns = returnablePairs(g.players[g.pending.by].hand)
 	}
 	return snapshot
 }
@@ -125,7 +129,7 @@ func (g *Game) actionsFor(by int) []AvailableAction {
 		}
 		offered := AvailableAction{Name: rule.Name, Cost: rule.Cost}
 		if rule.NeedsTarget {
-			if offered.Targets = g.validTargetNames(by); len(offered.Targets) == 0 {
+			if offered.Targets = g.validTargetNames(by, rule); len(offered.Targets) == 0 {
 				continue
 			}
 		}

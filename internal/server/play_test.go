@@ -220,3 +220,30 @@ func TestTheTargetBlocksAnAssassinationOverTheWireAndTheCoinsStaySpent(t *testin
 		t.Errorf("%s has %d coins and %s %d cards, expected 2 and 2", actor, coins, target, hidden)
 	}
 }
+
+func TestAnExchangeOverTheWireOnlyShowsTheDrawnCardsToTheExchanger(t *testing.T) {
+	url := startServer(t)
+	playing := seatTable(t, url, "tester1", "tester2", "tester3")
+	actor := playing.onTurn()
+	playing.play(actor, protocol.FromClient{Type: "play", Action: "exchange"})
+	for _, name := range playing.views[actor].Window.WaitingOn {
+		playing.respond(name, "pass")
+	}
+	if phase := playing.views[actor].Phase; phase != "awaiting_exchange" {
+		t.Fatalf("phase is %q, expected awaiting_exchange (someone challenged nobody)", phase)
+	}
+	watcher := playing.someoneElse(actor)
+	if returns := playing.views[watcher].YourReturns; returns != nil {
+		t.Errorf("%s is offered %v to return during someone else's exchange", watcher, returns)
+	}
+	refused := playing.refused(actor, protocol.FromClient{Type: "return_cards", Cards: []string{"duke"}})
+	if refused.Code != "illegal_action" {
+		t.Errorf("returning one card answered %q, expected illegal_action", refused.Code)
+	}
+
+	pair := playing.views[actor].YourReturns[0]
+	playing.play(actor, protocol.FromClient{Type: "return_cards", Cards: []string{pair[0].String(), pair[1].String()}})
+	if hidden := playing.player(actor).Hidden; hidden != 2 {
+		t.Errorf("%s kept %d cards after the exchange, expected 2", actor, hidden)
+	}
+}

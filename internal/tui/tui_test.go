@@ -377,3 +377,22 @@ func TestABlockWindowLabelsTheChallengeAgainstTheBlocker(t *testing.T) {
 		t.Errorf("blocking reads %q and sends %+v, expected duke", blocking[0].label, blocking[0].message)
 	}
 }
+
+func TestAnExchangeOffersEachPairAsOneChoice(t *testing.T) {
+	state := engine.View{You: "tester1", TurnOf: "tester1", Phase: "awaiting_exchange",
+		YourReturns: [][]engine.Character{{engine.Duke, engine.Captain}, {engine.Duke, engine.Duke}}}
+	offered := gameChoices(state)
+	if labels := labelsOf(offered); len(labels) != 2 || labels[0] != "devolver Duque e Capitão" {
+		t.Errorf("the terminal offers %v, expected one choice per pair", labels)
+	}
+	if sent := offered[1].message; sent.Type != "return_cards" || len(sent.Cards) != 2 || sent.Cards[0] != "duke" {
+		t.Errorf("the second choice sends %+v, expected return_cards [duke duke]", sent)
+	}
+	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "escolha as 2 cartas") {
+		t.Errorf("the screen does not ask which cards go back:\n%s", screen)
+	}
+	state.You, state.YourReturns = "tester2", nil
+	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "tester1 está escolhendo cartas") {
+		t.Errorf("the other seats are not told the exchange is under way:\n%s", screen)
+	}
+}

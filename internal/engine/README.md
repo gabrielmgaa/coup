@@ -12,10 +12,11 @@ nenhum deles.
 | | |
 |---|---|
 | `game.go` | `Game`, `NewGame`, `Phase`, `Apply`, `MaxPlayers` — o type switch e o pipeline de uma ação |
-| `move.go` | a união selada de entradas: `Act`, `Respond`, `LoseInfluence` |
-| `rules.go` | `Rule` e a tabela `rules`: uma linha por ação, com `Cost`, `Claims`, `NeedsTarget`, `Declaration`, `Effect` |
+| `move.go` | a união selada de entradas: `Act`, `Respond`, `LoseInfluence`, `ReturnCards` |
+| `rules.go` | `Rule` e a tabela `rules`: as 7 ações, com `Cost`, `Claims`, `NeedsTarget`, `BlockedBy`, `ValidTarget`, `Declaration`, `Effect` |
 | `window.go` | a janela de reação: `Answer`, `Option`, quem é elegível, `respond`, first-responder, bloqueio, fechamento quando todos passam |
 | `challenge.go` | contestação da ação e do bloqueio, troca da carta provada, devolução do custo |
+| `exchange.go` | devolver 2 cartas depois de Trocar, e os pares que o snapshot oferece |
 | `influence.go` | perder carta (escolha ou automática), o que vem depois (`followUp`), eliminação, vitória |
 | `deck.go` | `Character`, as 15 cartas, embaralhar |
 | `event.go` | `Event` e `narrate`: `n` sequencial + o texto pt-BR que o jogador lê |

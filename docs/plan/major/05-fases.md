@@ -186,7 +186,7 @@ de `reacted`.
 
 ---
 
-## 0.7 — Extorquir e Trocar
+## 0.7 — Extorquir e Trocar — **pronta**
 
 **Entrega:** as duas últimas ações. O jogo está completo em regras.
 
@@ -198,6 +198,19 @@ devolução de 2, inclusive o caso de quem tem uma só influência (1 + 2 = 3, d
 
 **Pronto quando:** uma partida de 4 pessoas usa as 7 ações e as 3 contra-ações e termina; e o
 Exemplo de Jogo do livreto roda como teste roteirizado, batendo com o resultado impresso lá.
+✅ na primeira metade: `TestAFourPlayerGameUsesEveryActionAndEveryBlockAndEnds`. ⚠️ Na
+segunda: o texto do Exemplo de Jogo não está no repositório (o `01-regras.md` só cita a frase do
+setup) e o PDF não foi relido, como o `CLAUDE.md` pede — o roteiro fica para quando alguém
+transcrever o exemplo para `01-regras.md`.
+
+**Decisões tomadas na execução:**
+
+- **`your_returns`** no snapshot de quem troca: a lista de pares distintos que ele pode devolver.
+  O cliente desenha um botão por par e não precisa saber que são duas.
+- **As cartas compradas vão para o fim da mão** durante `awaiting_exchange`. Os outros veem
+  `hidden: 4`, o que é verdade e não revela nada; o default seguro da 0.8 devolve as duas últimas.
+- **`ReturnCards.Cards` é `[2]Character`**, e o protocolo recusa qualquer lista que não tenha
+  exatamente dois nomes conhecidos antes de chegar no motor.
 
 ---
 

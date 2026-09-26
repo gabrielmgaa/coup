@@ -9,7 +9,7 @@ Um arquivo só, `protocol.go`, e ele é pequeno de propósito.
 
 | | |
 |---|---|
-| `FromClient` | tudo que chega: `type`, e os campos opcionais `room`, `name`, `ready`, `action`, `target`, `card`, `window`, `answer`, `character` |
+| `FromClient` | tudo que chega: `type`, e os campos opcionais `room`, `name`, `ready`, `action`, `target`, `card`, `window`, `answer`, `character`, `cards` |
 | `Update` | `{"type":"update","state":…,"events":[…]}` — o snapshot e a narração, **juntos, sempre** |
 | `RefusalMessage` | `{"type":"error", …}` — o `engine.Refusal` com um `type` na frente |
 | `Lobby` | `{"type":"lobby","state":{room, you, host, players:[{name, ready}]}}` — antes de a partida começar |
@@ -21,7 +21,8 @@ adivinhar pela forma do `state`.
 
 `ToMove` é a tradução de entrada: `"play"` vira `engine.Act`, `"respond"` vira `engine.Respond`
 (`window`, `answer` e, só com `block`, `character`), `"lose_influence"` vira
-`engine.LoseInfluence`. Nome de ação e de carta chegam em inglês e são resolvidos pelo motor
+`engine.LoseInfluence`, `"return_cards"` vira `engine.ReturnCards` — e só com exatamente duas
+cartas de nome conhecido. Nome de ação e de carta chegam em inglês e são resolvidos pelo motor
 (`ActionByName`, `CharacterByName`); nome que não existe vira um refusal com a lista do que existe.
 
 ## O que não pode quebrar

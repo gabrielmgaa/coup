@@ -112,6 +112,10 @@ func renderStatus(state engine.View) string {
 		return state.Losing + " está escolhendo qual carta perder…"
 	case state.Window != nil:
 		return renderWindow(*state.Window)
+	case len(state.YourReturns) > 0:
+		return "escolha as 2 cartas que voltam para o baralho"
+	case state.Phase == "awaiting_exchange":
+		return state.TurnOf + " está escolhendo cartas…"
 	case state.TurnOf == state.You:
 		return "sua vez"
 	}

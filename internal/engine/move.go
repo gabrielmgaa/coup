@@ -20,6 +20,12 @@ type Respond struct {
 	Character Character
 }
 
+type ReturnCards struct {
+	By    string
+	Cards [2]Character
+}
+
 func (Act) sealedMove()           {}
+func (ReturnCards) sealedMove()   {}
 func (LoseInfluence) sealedMove() {}
 func (Respond) sealedMove()       {}

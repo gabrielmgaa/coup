@@ -222,6 +222,23 @@ function YourTurn({ state, send }: { state: View; send: (message: FromClient) =>
 
   if (state.phase === 'finished') return null
 
+  if (state.your_returns) {
+    return (
+      <section className="actions">
+        <p>escolha as 2 cartas que voltam para o baralho</p>
+        {state.your_returns.map((pair) => (
+          <button key={pair.join('-')} onClick={() => send({ type: 'return_cards', cards: pair })}>
+            devolver {pair.map(cardLabel).join(' e ')}
+          </button>
+        ))}
+      </section>
+    )
+  }
+
+  if (state.phase === 'awaiting_exchange') {
+    return <p className="waiting">{state.turn_of} está escolhendo cartas…</p>
+  }
+
   if (state.window) {
     const window = state.window
     return (

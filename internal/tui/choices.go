@@ -36,6 +36,9 @@ func gameChoices(state engine.View) []choice {
 	if state.Window != nil {
 		return responseChoices(*state.Window)
 	}
+	if len(state.YourReturns) > 0 {
+		return returnChoices(state.YourReturns)
+	}
 	choices := []choice{}
 	for _, action := range state.YourActions {
 		choices = append(choices, actionChoices(action)...)
@@ -52,6 +55,25 @@ func revealChoices(state engine.View) []choice {
 		})
 	}
 	return choices
+}
+
+func returnChoices(pairs [][]engine.Character) []choice {
+	choices := make([]choice, 0, len(pairs))
+	for _, pair := range pairs {
+		choices = append(choices, choice{
+			label:   fmt.Sprintf("devolver %s e %s", pair[0].LabelPtBR(), pair[1].LabelPtBR()),
+			message: protocol.FromClient{Type: "return_cards", Cards: namesOf(pair)},
+		})
+	}
+	return choices
+}
+
+func namesOf(cards []engine.Character) []string {
+	names := make([]string, 0, len(cards))
+	for _, card := range cards {
+		names = append(names, card.String())
+	}
+	return names
 }
 
 func responseChoices(window engine.WindowView) []choice {
@@ -115,6 +137,8 @@ var actionLabels = map[string]string{
 	"foreign_aid": "Ajuda Externa",
 	"tax":         "Taxas",
 	"assassinate": "Assassinar",
+	"steal":       "Extorquir",
+	"exchange":    "Trocar",
 	"coup":        "Golpe de Estado",
 }
 

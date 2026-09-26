@@ -11,6 +11,7 @@ const (
 	AwaitingAction Phase = iota
 	AwaitingResponse
 	AwaitingInfluenceLoss
+	AwaitingExchange
 	Finished
 )
 
@@ -18,6 +19,7 @@ var phaseName = map[Phase]string{
 	AwaitingAction:        "awaiting_action",
 	AwaitingResponse:      "awaiting_response",
 	AwaitingInfluenceLoss: "awaiting_influence_loss",
+	AwaitingExchange:      "awaiting_exchange",
 	Finished:              "finished",
 }
 
@@ -36,6 +38,8 @@ const (
 	startingCoins      = 2
 	startingCoinsDuel  = 1
 	coinsForcingCoup   = 10
+	maxStolenCoins     = 2
+	exchangeDraw       = 2
 	nobody             = -1
 
 	RulebookCoins = 0
@@ -106,6 +110,8 @@ func (g *Game) Apply(move Move) ([]Event, error) {
 		return g.respond(chosen)
 	case LoseInfluence:
 		return g.loseInfluence(chosen)
+	case ReturnCards:
+		return g.returnCards(chosen)
 	}
 	return nil, &Refusal{Code: "illegal_action", Message: "jogada desconhecida"}
 }
@@ -149,7 +155,7 @@ func (g *Game) checkAction(a Act) (pendingAction, error) {
 	}
 	target := nobody
 	if rule.NeedsTarget {
-		if target, err = g.indexOfLivingTarget(by, a.Target); err != nil {
+		if target, err = g.indexOfValidTarget(by, rule, a.Target); err != nil {
 			return pendingAction{}, err
 		}
 	}
@@ -214,19 +220,24 @@ func (g *Game) indexOnTurn(name string) (int, error) {
 	return index, nil
 }
 
-func (g *Game) indexOfLivingTarget(by int, name string) (int, error) {
+func (g *Game) indexOfValidTarget(by int, rule Rule, name string) (int, error) {
 	target := g.indexOf(name)
-	if target == nobody || target == by || !g.players[target].alive() {
-		return nobody, &Refusal{Code: "invalid_target", Message: "alvo fora do jogo ou inexistente",
-			Received: name, Expected: g.validTargetNames(by)}
+	if target == nobody || !g.validTarget(by, rule, target) {
+		return nobody, &Refusal{Code: "invalid_target", Message: "alvo que esta ação não pode mirar",
+			Received: name, Expected: g.validTargetNames(by, rule)}
 	}
 	return target, nil
 }
 
-func (g *Game) validTargetNames(by int) []string {
-	var names []string
+func (g *Game) validTarget(by int, rule Rule, target int) bool {
+	who := &g.players[target]
+	return target != by && who.alive() && (rule.ValidTarget == nil || rule.ValidTarget(who))
+}
+
+func (g *Game) validTargetNames(by int, rule Rule) []string {
+	names := []string{}
 	for i := range g.players {
-		if i != by && g.players[i].alive() {
+		if g.validTarget(by, rule, i) {
 			names = append(names, g.players[i].name)
 		}
 	}
