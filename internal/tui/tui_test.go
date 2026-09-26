@@ -512,9 +512,11 @@ func TestTheFirstMessageDependsOnWhatTheTableKnows(t *testing.T) {
 func TestTheSessionLivesUnderTheUserConfigFolder(t *testing.T) {
 	folder := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", folder)
+	t.Setenv("HOME", folder)
+	configFolder, _ := os.UserConfigDir()
 	path, err := SessionPath()
-	if err != nil || path != filepath.Join(folder, "coup", "session.json") {
-		t.Errorf("the session path is %q, %v; expected it under %s", path, err, folder)
+	if err != nil || path != filepath.Join(configFolder, "coup", "session.json") || !strings.HasPrefix(path, folder) {
+		t.Errorf("the session path is %q, %v; expected coup/session.json in the config folder under %s", path, err, folder)
 	}
 }
 

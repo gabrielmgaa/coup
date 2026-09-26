@@ -90,7 +90,7 @@ func TestTheSeedComesFromTheSystem(t *testing.T) {
 }
 
 func TestServeReportsAPortThatIsAlreadyTaken(t *testing.T) {
-	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	taken, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("could not hold a port: %v", err)
 	}
