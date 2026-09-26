@@ -126,7 +126,10 @@ SSR, no server routes, no rewrites in production — one page, rendered only on 
 `@fontsource` so the binary works on a LAN with no internet. The visual direction ("Esmalte":
 paper, 3 px ink outline, hard shadow, one hue per card) lives as Tailwind tokens in
 `web/app/globals.css`; card hues and glyphs in `web/lib/palette.ts` and `web/components/cards.tsx`.
-`agentRules: false` in `next.config.ts` stops `next dev` from writing its own AGENTS.md/CLAUDE.md.
+`web/CLAUDE.md` is just `@AGENTS.md`; `web/AGENTS.md` holds the block `next dev` maintains
+between its `nextjs-agent-rules` markers (read `node_modules/next/dist/docs/` before touching
+Next APIs — this Next may differ from what you remember), followed by the rules specific to
+`web/`. Both are committed, so `next dev` finds its block and leaves the tree clean.
 
 ### The load-bearing empty files
 

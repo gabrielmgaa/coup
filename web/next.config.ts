@@ -6,7 +6,6 @@ const config: NextConfig = {
   output: 'export',
   distDir: 'dist',
   images: { unoptimized: true },
-  agentRules: false,
   ...(process.env.NODE_ENV === 'development' && {
     rewrites: async () => [{ source: '/ws', destination: `${goServer}/ws` }],
   }),

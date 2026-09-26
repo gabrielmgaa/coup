@@ -23,6 +23,7 @@ de Coup aqui dentro, e não pode ganhar nenhuma.**
 | `components/Hand.tsx` | a sua mão e a sua decisão: ações (com alvo em dois toques), revelar carta, escolher o que devolver na troca |
 | `components/Log.tsx` | o registro |
 | `embed.go` | pacote Go de uma função: `Dist()` devolve o `dist/` embutido no binário |
+| `CLAUDE.md`, `AGENTS.md` | as instruções para agentes: o `CLAUDE.md` só importa o `AGENTS.md` com `@AGENTS.md` |
 
 ## O cliente não sabe as regras
 
@@ -36,7 +37,15 @@ estiver em `your_returns` — a lista decide, não a tela. A legenda impressa em
 O binário único é o requisito: o Go embute `dist/` e serve tudo. `output: 'export'` gera HTML e JS
 estáticos; não há SSR, rota de servidor nem rewrite em produção. O rewrite de `/ws` pro `:8080`
 existe só no `next dev`. As fontes vêm do `@fontsource`, dentro do build, então a mesa funciona
-numa LAN sem internet. `agentRules: false` impede o `next dev` de escrever um AGENTS.md aqui.
+numa LAN sem internet.
+
+## `AGENTS.md` e `CLAUDE.md`
+
+O Next 16 escreve, no `next dev`, um bloco entre os marcadores `nextjs-agent-rules` avisando que
+esta versão pode diferir do que um agente lembra, e mandando ler `node_modules/next/dist/docs/`.
+Os dois arquivos estão versionados: o `next dev` encontra o bloco e não mexe em nada. Abaixo do
+bloco ficam as regras deste diretório (export estático, cliente sem regra, direção Esmalte,
+idioma). O `CLAUDE.md` tem uma linha só, `@AGENTS.md`, e o Claude Code lê o outro por ela.
 
 ## Dois processos em dev, um em release
 
