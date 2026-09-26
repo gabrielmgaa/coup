@@ -142,7 +142,7 @@ jogam uma partida onde alguém blefa Duque, é pego, e perde influência. ✅ Os
 
 ---
 
-## 0.5 — Bloqueio
+## 0.5 — Bloqueio — **pronta**
 
 **Entrega:** **Ajuda Externa** e o bloqueio do Duque.
 
@@ -151,7 +151,14 @@ jogam uma partida onde alguém blefa Duque, é pego, e perde influência. ✅ Os
 `block` + `character`; a regra de que **bloqueio bem-sucedido não devolve custo**.
 
 **Pronto quando:** os galhos B1 e B3 passam por número, e uma Ajuda Externa bloqueada por um
-terceiro jogador (não o alvo, porque não há alvo) funciona na tela.
+terceiro jogador (não o alvo, porque não há alvo) funciona na tela. ✅ Com Ajuda Externa:
+`TestForeignAidBlockedAndUnchallengedPaysNothing` (B1), `TestABluffedBlockCostsTheBlockerAndTheActionGoesThrough`
+(B3), `TestABlockProvenCostsTheChallengerAndTheActionStillFails` (B2), e
+`TestAThirdSeatBlocksForeignAidOverTheWire` pelo WebSocket.
+
+**Decisão tomada na execução:** a janela sobre um bloqueio pergunta a **todos os vivos menos o
+bloqueador**, inclusive quem já contestou ou passou na janela da ação — contestar o bloqueio é
+uma reação ao bloqueio, não à ação, e a invariante "uma reação por ação" não se aplica a ela.
 
 ---
 

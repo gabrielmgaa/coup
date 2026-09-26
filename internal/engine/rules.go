@@ -7,6 +7,7 @@ type ActionType uint8
 const (
 	NoAction ActionType = iota
 	Income
+	ForeignAid
 	Coup
 	Tax
 )
@@ -16,19 +17,26 @@ type Rule struct {
 	Cost        int
 	Claims      Character
 	NeedsTarget bool
+	BlockedBy   []Character
 	Declaration string
 	Effect      func(g *Game, by, target int) []Event
 }
 
 func (r Rule) challengeable() bool { return r.Claims != NoCharacter }
 
-var actionOrderForDeterministicView = []ActionType{Income, Tax, Coup}
+var actionOrderForDeterministicView = []ActionType{Income, ForeignAid, Tax, Coup}
 
 var rules = map[ActionType]Rule{
 	Income: {
 		Name:        "income",
 		Declaration: "%[1]s pegou Renda.",
 		Effect:      gainCoins(1),
+	},
+	ForeignAid: {
+		Name:        "foreign_aid",
+		BlockedBy:   []Character{Duke},
+		Declaration: "%[1]s pediu Ajuda Externa.",
+		Effect:      gainCoins(2),
 	},
 	Tax: {
 		Name:        "tax",

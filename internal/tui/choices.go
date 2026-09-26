@@ -69,6 +69,9 @@ func responseChoices(window engine.WindowView) []choice {
 func optionLabel(window engine.WindowView, option engine.Option) string {
 	switch option.Answer {
 	case engine.Challenge:
+		if window.Block != nil {
+			return fmt.Sprintf("contestar o %s de %s", window.Block.Character.LabelPtBR(), window.Block.By)
+		}
 		return fmt.Sprintf("contestar o %s de %s", window.Action.Claims.LabelPtBR(), window.Action.By)
 	case engine.Block:
 		return "bloquear com " + option.Character.LabelPtBR()
@@ -108,9 +111,10 @@ func myCards(state engine.View) []engine.Character {
 }
 
 var actionLabels = map[string]string{
-	"income": "Renda",
-	"tax":    "Taxas",
-	"coup":   "Golpe de Estado",
+	"income":      "Renda",
+	"foreign_aid": "Ajuda Externa",
+	"tax":         "Taxas",
+	"coup":        "Golpe de Estado",
 }
 
 func actionLabel(name string) string {

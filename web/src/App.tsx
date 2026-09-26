@@ -228,7 +228,9 @@ function YourTurn({ state, send }: { state: View; send: (message: FromClient) =>
       <section className="actions">
         <p>
           {window.action.by} declarou {actionLabel(window.action.name)}
-          {window.action.target && ` em ${window.action.target}`} — esperando {window.waiting_on.join(', ')}
+          {window.action.target && ` em ${window.action.target}`}
+          {window.block && `; ${window.block.by} bloqueou com ${cardLabel(window.block.character)}`} — esperando{' '}
+          {window.waiting_on.join(', ')}
         </p>
         {window.your_options.map((option) => (
           <button

@@ -3,18 +3,39 @@ package engine
 import "fmt"
 
 func (g *Game) challenge(challenger int) []Event {
-	claimant, claimed := g.pending.by, g.pending.rule.Claims
+	blocked := g.window.block
 	g.window = nil
-	events := []Event{g.narrate("challenged", fmt.Sprintf("%s contestou o %s de %s.",
-		g.players[challenger].name, claimed.LabelPtBR(), g.players[claimant].name))}
+	if blocked != nil {
+		return g.challengeBlock(challenger, *blocked)
+	}
+	claimant, claimed := g.pending.by, g.pending.rule.Claims
+	events := g.narrateChallenge(challenger, claimant, claimed)
 	if handHas(g.players[claimant].hand, claimed) {
 		events = append(events, g.swapProvenCard(claimant, claimed)...)
 		return append(events, g.loseInfluenceThen(challenger, continueAction)...)
 	}
-	events = append(events, g.narrate("challenge_won", fmt.Sprintf("%s não tinha %s.",
-		g.players[claimant].name, claimed.LabelPtBR())))
+	events = append(events, g.narrateBluff(claimant, claimed))
 	events = append(events, g.refundCost()...)
 	return append(events, g.loseInfluenceThen(claimant, endTurn)...)
+}
+
+func (g *Game) challengeBlock(challenger int, blocked pendingBlock) []Event {
+	events := g.narrateChallenge(challenger, blocked.by, blocked.character)
+	if handHas(g.players[blocked.by].hand, blocked.character) {
+		events = append(events, g.swapProvenCard(blocked.by, blocked.character)...)
+		return append(events, g.loseInfluenceThen(challenger, endTurn)...)
+	}
+	events = append(events, g.narrateBluff(blocked.by, blocked.character))
+	return append(events, g.loseInfluenceThen(blocked.by, resolveAction)...)
+}
+
+func (g *Game) narrateChallenge(challenger, claimant int, claimed Character) []Event {
+	return []Event{g.narrate("challenged", fmt.Sprintf("%s contestou o %s de %s.",
+		g.players[challenger].name, claimed.LabelPtBR(), g.players[claimant].name))}
+}
+
+func (g *Game) narrateBluff(claimant int, claimed Character) Event {
+	return g.narrate("challenge_won", fmt.Sprintf("%s não tinha %s.", g.players[claimant].name, claimed.LabelPtBR()))
 }
 
 func (g *Game) swapProvenCard(claimant int, card Character) []Event {

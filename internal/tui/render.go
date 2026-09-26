@@ -123,6 +123,9 @@ func renderWindow(window engine.WindowView) string {
 	if window.Action.Target != "" {
 		declared += " em " + window.Action.Target
 	}
+	if window.Block != nil {
+		declared += fmt.Sprintf("; %s bloqueou com %s", window.Block.By, window.Block.Character.LabelPtBR())
+	}
 	return declared + " — esperando " + strings.Join(window.WaitingOn, ", ")
 }
 

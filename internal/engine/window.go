@@ -54,8 +54,14 @@ type Option struct {
 
 type window struct {
 	id        int
+	block     *pendingBlock
 	pending   map[int]bool
 	responded map[int]bool
+}
+
+type pendingBlock struct {
+	by        int
+	character Character
 }
 
 func (g *Game) openActionWindow() []Event {
@@ -68,13 +74,13 @@ func (g *Game) openActionWindow() []Event {
 	if len(eligible) == 0 {
 		return g.resolveAction()
 	}
-	g.openWindow(eligible)
+	g.openWindow(eligible, nil)
 	return nil
 }
 
-func (g *Game) openWindow(eligible []int) {
+func (g *Game) openWindow(eligible []int, block *pendingBlock) {
 	g.decision++
-	g.window = &window{id: g.decision, pending: map[int]bool{}, responded: map[int]bool{}}
+	g.window = &window{id: g.decision, block: block, pending: map[int]bool{}, responded: map[int]bool{}}
 	for _, i := range eligible {
 		g.window.pending[i] = true
 	}
@@ -82,10 +88,24 @@ func (g *Game) openWindow(eligible []int) {
 }
 
 func (g *Game) reactionsOf(i int) []Option {
-	if g.pending.rule.challengeable() {
+	if g.window != nil && g.window.block != nil {
 		return []Option{{Answer: Challenge}}
 	}
-	return nil
+	reactions := []Option{}
+	if g.pending.rule.challengeable() {
+		reactions = append(reactions, Option{Answer: Challenge})
+	}
+	if g.mayBlock(i) {
+		for _, blocker := range g.pending.rule.BlockedBy {
+			reactions = append(reactions, Option{Answer: Block, Character: blocker})
+		}
+	}
+	return reactions
+}
+
+func (g *Game) mayBlock(i int) bool {
+	rule := g.pending.rule
+	return len(rule.BlockedBy) > 0 && (!rule.NeedsTarget || i == g.pending.target)
 }
 
 func (g *Game) optionsFor(i int) []Option {
@@ -102,8 +122,11 @@ func (g *Game) respond(r Respond) ([]Event, error) {
 	}
 	g.window.responded[responder] = true
 	delete(g.window.pending, responder)
-	if r.Answer == Challenge {
+	switch r.Answer {
+	case Challenge:
 		return g.challenge(responder), nil
+	case Block:
+		return g.block(responder, r.Character), nil
 	}
 	return g.pass(responder), nil
 }
@@ -137,8 +160,25 @@ func (g *Game) pass(responder int) []Event {
 	if len(g.window.pending) > 0 {
 		return []Event{passed}
 	}
+	blocked := g.window.block
 	g.window = nil
-	return append([]Event{passed}, g.resolveAction()...)
+	if blocked == nil {
+		return append([]Event{passed}, g.resolveAction()...)
+	}
+	held := g.narrate("block_held", fmt.Sprintf("O bloqueio de %s valeu.", g.players[blocked.by].name))
+	return append([]Event{passed, held}, g.proceed(endTurn)...)
+}
+
+func (g *Game) block(blocker int, character Character) []Event {
+	eligible := []int{}
+	for i := range g.players {
+		if i != blocker && g.players[i].alive() {
+			eligible = append(eligible, i)
+		}
+	}
+	g.openWindow(eligible, &pendingBlock{by: blocker, character: character})
+	return []Event{g.narrate("blocked", fmt.Sprintf("%s alegou %s para bloquear %s.",
+		g.players[blocker].name, character.LabelPtBR(), g.players[g.pending.by].name))}
 }
 
 func (g *Game) continueAction() []Event {

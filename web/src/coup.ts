@@ -18,6 +18,7 @@ export type Option = { answer: 'challenge' | 'block' | 'pass'; character?: strin
 export type WindowView = {
   id: number
   action: { name: string; by: string; target?: string; claims?: string }
+  block: { by: string; character: string } | null
   your_options: Option[]
   waiting_on: string[]
 }
@@ -64,6 +65,7 @@ export type FromClient =
 
 const actionLabels: Record<string, string> = {
   income: 'renda',
+  foreign_aid: 'ajuda externa',
   tax: 'taxas',
   coup: 'golpe',
 }
@@ -85,6 +87,9 @@ export function cardLabel(name: string): string {
 }
 
 export function optionLabel(window: WindowView, option: Option): string {
+  if (option.answer === 'challenge' && window.block) {
+    return `contestar o ${cardLabel(window.block.character)} de ${window.block.by}`
+  }
   if (option.answer === 'challenge') return `contestar o ${cardLabel(window.action.claims ?? '')} de ${window.action.by}`
   if (option.answer === 'block') return `bloquear com ${cardLabel(option.character ?? '')}`
   return 'deixar passar'

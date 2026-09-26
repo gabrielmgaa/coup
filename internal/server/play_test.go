@@ -166,3 +166,25 @@ func TestAWindowAnswerSentByAnotherSeatCannotSpeakForSomeoneElse(t *testing.T) {
 		t.Errorf("code %q, expected illegal_action — the claimant tried to pass on behalf of another seat", code)
 	}
 }
+
+func TestAThirdSeatBlocksForeignAidOverTheWire(t *testing.T) {
+	url := startServer(t)
+	playing := seatTable(t, url, "tester1", "tester2", "tester3")
+	actor := playing.onTurn()
+	blocker := playing.someoneElse(actor)
+	coinsBefore := playing.player(actor).Coins
+
+	playing.play(actor, protocol.FromClient{Type: "play", Action: "foreign_aid"})
+	playing.play(blocker, protocol.FromClient{Type: "respond", Window: playing.views[blocker].Window.ID,
+		Answer: "block", Character: "duke"})
+	for _, name := range playing.views[actor].Window.WaitingOn {
+		playing.respond(name, "pass")
+	}
+
+	if coins := playing.player(actor).Coins; coins != coinsBefore {
+		t.Errorf("%s holds %d coins, expected %d — the duke block held", actor, coins, coinsBefore)
+	}
+	if turn := playing.onTurn(); turn == actor {
+		t.Errorf("the turn stayed with %s after the blocked foreign aid", actor)
+	}
+}

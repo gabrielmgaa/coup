@@ -357,3 +357,23 @@ func TestAnOpenWindowOffersExactlyTheServerOptions(t *testing.T) {
 		t.Errorf("the screen does not say who the window waits on:\n%s", screen)
 	}
 }
+
+func TestABlockWindowLabelsTheChallengeAgainstTheBlocker(t *testing.T) {
+	state := engine.View{You: "tester1", TurnOf: "tester1", Window: &engine.WindowView{
+		ID:          7,
+		Action:      engine.ActionView{Name: "foreign_aid", By: "tester1"},
+		Block:       &engine.BlockView{By: "tester3", Character: engine.Duke},
+		YourOptions: []engine.Option{{Answer: engine.Challenge}, {Answer: engine.Pass}},
+		WaitingOn:   []string{"tester1"},
+	}}
+	if labels := labelsOf(gameChoices(state)); labels[0] != "contestar o Duque de tester3" {
+		t.Errorf("the terminal offers %v, expected to challenge tester3's duke", labels)
+	}
+	if screen := (Model{game: &state}).View(); !strings.Contains(screen, "tester3 bloqueou com Duque") {
+		t.Errorf("the screen does not show the block:\n%s", screen)
+	}
+	blocking := responseChoices(engine.WindowView{ID: 8, YourOptions: []engine.Option{{Answer: engine.Block, Character: engine.Duke}}})
+	if blocking[0].label != "bloquear com Duque" || blocking[0].message.Character != "duke" {
+		t.Errorf("blocking reads %q and sends %+v, expected duke", blocking[0].label, blocking[0].message)
+	}
+}

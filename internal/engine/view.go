@@ -15,8 +15,14 @@ type View struct {
 type WindowView struct {
 	ID          int        `json:"id"`
 	Action      ActionView `json:"action"`
+	Block       *BlockView `json:"block"`
 	YourOptions []Option   `json:"your_options"`
 	WaitingOn   []string   `json:"waiting_on"`
+}
+
+type BlockView struct {
+	By        string    `json:"by"`
+	Character Character `json:"character"`
 }
 
 type ActionView struct {
@@ -93,9 +99,17 @@ func (g *Game) windowAsSeenBy(name string) *WindowView {
 	return &WindowView{
 		ID:          g.window.id,
 		Action:      declared,
+		Block:       g.blockAsSeen(),
 		YourOptions: append([]Option{}, g.optionsFor(g.indexOf(name))...),
 		WaitingOn:   g.waitingOn(),
 	}
+}
+
+func (g *Game) blockAsSeen() *BlockView {
+	if g.window.block == nil {
+		return nil
+	}
+	return &BlockView{By: g.players[g.window.block.by].name, Character: g.window.block.character}
 }
 
 func (g *Game) actionsFor(by int) []AvailableAction {
