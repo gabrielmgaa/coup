@@ -18,7 +18,8 @@ const (
 )
 
 func hurriedConfig() Config {
-	return Config{InitialCoins: engine.RulebookCoins, Deadline: shortDeadline, Grace: shortGrace, IdleTTL: shortIdle, Handshake: time.Hour}
+	return Config{InitialCoins: engine.RulebookCoins, Deadline: shortDeadline, Grace: shortGrace, IdleTTL: shortIdle, Handshake: time.Hour,
+		PingEvery: time.Hour, PongWait: time.Hour, WriteWait: time.Hour}
 }
 
 func patientTimersExceptDeadline() Config {
@@ -172,32 +173,6 @@ func TestADropTheGameDoesNotWaitOnDoesNotPause(t *testing.T) {
 	playing.seats[actor].send(protocol.FromClient{Type: "play", Action: "income"})
 	if moved := playing.seats[actor].nextState(); moved.TurnOf == actor {
 		t.Error("the game did not go on after a bystander dropped")
-	}
-}
-
-func TestReconnectingWithinTheGraceResumesWithAFullDeadline(t *testing.T) {
-	config := calmConfig(engine.RulebookCoins)
-	config.Deadline = 2 * time.Second
-	url := startServerWith(t, config)
-	playing := seatTable(t, url, "tester1", "tester2")
-	actor := playing.onTurn()
-	watcher := playing.seats[playing.someoneElse(actor)]
-	playing.seats[actor].conn.CloseNow()
-	watcher.stateUntil(func(state protocol.GameState) bool { return state.Paused != nil })
-
-	back := rejoin(t, url, playing.seats[actor].room, playing.seats[actor].token)
-	if welcome := back.receive(); welcome.Type != "welcome" {
-		t.Fatalf("reconnect answered %q, expected welcome", welcome.Type)
-	}
-	resumed := back.nextState()
-	if resumed.Paused != nil {
-		t.Errorf("the table is still paused after %s came back", actor)
-	}
-	if resumed.ClosesInMs < config.Deadline.Milliseconds()-300 {
-		t.Errorf("closes_in_ms is %d after the return, expected close to the full %d", resumed.ClosesInMs, config.Deadline.Milliseconds())
-	}
-	if resumed.You != actor || len(resumed.YourActions) == 0 {
-		t.Errorf("the returning snapshot is for %q with actions %v, expected %s on turn", resumed.You, resumed.YourActions, actor)
 	}
 }
 
@@ -385,7 +360,7 @@ func TestADeadlineQueuedBeforeAPauseChangesNothing(t *testing.T) {
 	room.game = dealt
 	room.seats = []*seat{{name: "tester1"}, {name: "tester2"}}
 	room.clock.armDeadline(dealt.Decision(), time.Hour, room.deliver)
-	room.clock.pause([]string{"tester1"}, time.Hour, room.deliver)
+	room.clock.pause(dealt.Decision(), []string{"tester1"}, time.Hour, room.deliver)
 	defer room.clock.stopAll()
 	decision := dealt.Decision()
 

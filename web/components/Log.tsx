@@ -7,7 +7,9 @@ import { Card, CardAction, CardContent, CardHeader } from './ui/card'
 
 export function Log({ log }: { log: GameEvent[] }) {
   const bottom = useRef<HTMLLIElement | null>(null)
-  useEffect(() => bottom.current?.scrollIntoView({ block: 'nearest' }), [log.length])
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: 'nearest' })
+  }, [log.length])
 
   return (
     <Card className="sticky top-4 max-h-[calc(100dvh-120px)] self-start max-lg:static max-lg:max-h-80">

@@ -19,6 +19,9 @@ chega e manda de volta o que foi escolhido**. Não tem regra de Coup aqui dentro
 
 - **As escolhas saem do snapshot, nunca de uma regra.** `choices.go` expande `your_actions`
   (um item por alvo) e as cartas da própria mão; ele não decide o que é legal.
+- **Decisão nova, cursor novo.** Quando a lista de escolhas muda, o cursor volta para "deixar
+  passar" se ela existir, senão para a primeira. Um Enter que sobrou da decisão anterior nunca
+  cai num bloqueio ou numa contestação.
 - **O modelo não escreve na rede dentro do `Update`.** A escrita volta como `tea.Cmd` e roda fora
   do laço do Bubble Tea — o mesmo princípio do actor do servidor.
 - **Quando a sala recusa e fecha, o motivo aparece.** Se a conexão cai depois de um `error`, o
@@ -29,7 +32,7 @@ chega e manda de volta o que foi escolhido**. Não tem regra de Coup aqui dentro
 `tui_test.go` joga uma partida inteira contra o servidor de verdade: um terminal (dirigido por
 teclas no `Model`) e um "navegador" (WebSocket cru), até alguém vencer, e confere que os dois
 viram o mesmo vencedor. Não precisa de TTY: o laço do Bubble Tea é reproduzido chamando
-`Update` com o que o socket entrega.
+`Update` com o que o socket entrega. O cursor tem o seu próprio arquivo, `cursor_test.go`.
 
 ## Desvio do plano
 

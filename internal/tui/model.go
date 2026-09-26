@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"slices"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,6 +21,7 @@ type Model struct {
 	log      []engine.Event
 	refusal  string
 	cursor   int
+	offered  []choice
 	closesAt time.Time
 	lost     error
 }
@@ -88,9 +90,29 @@ func (m Model) choose() tea.Cmd {
 }
 
 func (m Model) settle() Model {
-	last := len(m.choices()) - 1
-	m.cursor = max(0, min(m.cursor, last))
+	available := m.choices()
+	if !sameChoices(m.offered, available) {
+		m.offered = available
+		m.cursor = safestChoice(available)
+		return m
+	}
+	m.cursor = max(0, min(m.cursor, len(available)-1))
 	return m
+}
+
+func sameChoices(before, after []choice) bool {
+	return slices.EqualFunc(before, after, func(earlier, later choice) bool {
+		return earlier.label == later.label && earlier.message.Window == later.message.Window
+	})
+}
+
+func safestChoice(available []choice) int {
+	for position, option := range available {
+		if option.message.Answer == engine.Pass.String() {
+			return position
+		}
+	}
+	return 0
 }
 
 func (m Model) choices() []choice {

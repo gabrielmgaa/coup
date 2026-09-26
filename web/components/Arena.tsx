@@ -111,7 +111,7 @@ function Pause({ waitingFor, secondsLeft }: { waitingFor: string[]; secondsLeft:
         </Badge>
         <p className="text-2xl leading-tight font-bold">{waitingFor.join(', ')} caiu no meio da jogada.</p>
         <p className="text-[15px] text-muted-foreground">
-          A mesa só para porque a jogada depende de quem caiu. Voltando a tempo, o relógio recomeça cheio; se não, a jogada
+          A mesa só para porque a jogada depende de quem caiu. Voltando a tempo, o relógio continua de onde parou; se não, a jogada
           resolve pelo padrão seguro e a partida segue.
         </p>
       </div>

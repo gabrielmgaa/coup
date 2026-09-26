@@ -228,10 +228,13 @@ seguro (janela → passar; turno → Renda; perda de influência → primeira ca
 bits; `reconnect` devolvendo o snapshot atual; TTL de 30 min.
 
 **Pronto quando:** você fecha uma aba no meio de uma janela, vê a mesa pausar nas outras,
-reabre dentro dos 30 s e volta ao jogo com 25 s cheios; repete deixando estourar e vê a
-partida seguir sem você; e `go test -race ./...` passa limpo. ✅ `clock_test.go` roda os dois
-roteiros pelo WebSocket com prazos curtos (`TestReconnectingWithinTheGraceResumesWithAFullDeadline`,
-`TestAfterTheGraceTheTablePlaysOnWithoutPausingAgain`), e `-race` passa.
+reabre dentro dos 30 s e volta ao jogo com o tempo que tinha; repete deixando estourar e vê a
+partida seguir sem você; e `go test -race ./...` passa limpo. ✅ `budget_test.go` e
+`clock_test.go` rodam os roteiros pelo WebSocket com prazos curtos
+(`TestReconnectingWithinTheGraceResumesWithTheTimeThatWasLeft`,
+`TestAfterTheGraceTheTablePlaysOnWithoutPausingAgain`), e `-race` passa. Depois da 0.9 o prazo
+deixou de recomeçar cheio na volta: cair e reconectar em loop segurava a vez para sempre
+(medido: 85 s num prazo de 25 s). Agora prazo e carência são saldo de cada decisão.
 
 **Decisões tomadas na execução:**
 

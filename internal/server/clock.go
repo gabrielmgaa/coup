@@ -19,47 +19,59 @@ type expiry struct {
 	id   int
 }
 
+const noDecision = -1
+
 type clock struct {
-	deadline    *time.Timer
-	deadlineFor int
-	deadlineAt  time.Time
-	grace       *time.Timer
-	pauseID     int
-	paused      []string
-	resumeAt    time.Time
-	idle        *time.Timer
-	idleID      int
+	deadline     *time.Timer
+	deadlineFor  int
+	deadlineAt   time.Time
+	deadlineLeft time.Duration
+	grace        *time.Timer
+	graceFor     int
+	graceLeft    time.Duration
+	pauseID      int
+	paused       []string
+	resumeAt     time.Time
+	idle         *time.Timer
+	idleID       int
 }
 
-func newClock() clock { return clock{} }
+func newClock() clock { return clock{deadlineFor: noDecision, graceFor: noDecision} }
 
 func fire(deliver func(command) bool, fired expiry) func() {
 	return func() { deliver(command{expired: &fired}) }
 }
 
-func (c *clock) armDeadline(decision int, after time.Duration, deliver func(command) bool) {
+func (c *clock) armDeadline(decision int, full time.Duration, deliver func(command) bool) {
 	if c.deadline != nil && c.deadlineFor == decision {
 		return
 	}
 	c.stopDeadline()
-	c.deadlineFor = decision
-	c.deadlineAt = time.Now().Add(after)
-	c.deadline = time.AfterFunc(after, fire(deliver, expiry{kind: deadlineExpired, id: decision}))
+	if c.deadlineFor != decision {
+		c.deadlineFor, c.deadlineLeft = decision, full
+	}
+	c.deadlineAt = time.Now().Add(c.deadlineLeft)
+	c.deadline = time.AfterFunc(c.deadlineLeft, fire(deliver, expiry{kind: deadlineExpired, id: decision}))
 }
 
 func (c *clock) stopDeadline() {
-	if c.deadline != nil {
-		c.deadline.Stop()
-		c.deadline = nil
+	if c.deadline == nil {
+		return
 	}
+	c.deadline.Stop()
+	c.deadline = nil
+	c.deadlineLeft = max(0, time.Until(c.deadlineAt))
 }
 
-func (c *clock) pause(waiting []string, grace time.Duration, deliver func(command) bool) {
+func (c *clock) pause(decision int, waiting []string, full time.Duration, deliver func(command) bool) {
 	c.stopDeadline()
 	if c.paused == nil {
+		if c.graceFor != decision {
+			c.graceFor, c.graceLeft = decision, full
+		}
 		c.pauseID++
-		c.resumeAt = time.Now().Add(grace)
-		c.grace = time.AfterFunc(grace, fire(deliver, expiry{kind: graceExpired, id: c.pauseID}))
+		c.resumeAt = time.Now().Add(c.graceLeft)
+		c.grace = time.AfterFunc(c.graceLeft, fire(deliver, expiry{kind: graceExpired, id: c.pauseID}))
 	}
 	c.paused = waiting
 }
@@ -69,7 +81,19 @@ func (c *clock) resume() {
 		return
 	}
 	c.grace.Stop()
+	c.graceLeft = max(0, time.Until(c.resumeAt))
 	c.paused = nil
+}
+
+func (c *clock) deadlineFired() {
+	c.stopDeadline()
+	c.deadlineFor = noDecision
+}
+
+func (c *clock) endGame() {
+	c.stopDeadline()
+	c.resume()
+	c.deadlineFor, c.graceFor = noDecision, noDecision
 }
 
 func (c *clock) startIdle(ttl time.Duration, deliver func(command) bool) {
@@ -106,12 +130,11 @@ func (c *clock) resumesInMs() int64 {
 
 func (r *Room) settleClock() {
 	if r.game.Winner() != "" {
-		r.clock.stopDeadline()
-		r.clock.resume()
+		r.clock.endGame()
 		return
 	}
 	if waiting := r.stalled(); len(waiting) > 0 {
-		r.clock.pause(waiting, r.config.Grace, r.deliver)
+		r.clock.pause(r.game.Decision(), waiting, r.config.Grace, r.deliver)
 		return
 	}
 	r.clock.resume()
@@ -143,7 +166,7 @@ func (r *Room) deadlinePassed(decision int) {
 	if r.clock.deadline == nil || r.clock.deadlineFor != decision {
 		return
 	}
-	r.clock.stopDeadline()
+	r.clock.deadlineFired()
 	var events []engine.Event
 	for _, name := range r.game.Awaiting() {
 		move, _ := r.game.SafeMove(name)

@@ -31,6 +31,9 @@ type Config struct {
 	Grace        time.Duration
 	IdleTTL      time.Duration
 	Handshake    time.Duration
+	PingEvery    time.Duration
+	PongWait     time.Duration
+	WriteWait    time.Duration
 }
 
 func DefaultConfig(initialCoins int) Config {
@@ -40,6 +43,9 @@ func DefaultConfig(initialCoins int) Config {
 		Grace:        30 * time.Second,
 		IdleTTL:      30 * time.Minute,
 		Handshake:    10 * time.Second,
+		PingEvery:    15 * time.Second,
+		PongWait:     10 * time.Second,
+		WriteWait:    10 * time.Second,
 	}
 }
 
@@ -159,7 +165,8 @@ func (d *registry) accept(w http.ResponseWriter, request *http.Request) {
 		refuseAndClose(ctx, conn, roomNotFound(first.Room))
 		return
 	}
-	go write(ctx, conn, c)
+	go write(ctx, conn, c, d.config.WriteWait)
+	go keepAlive(ctx, conn, d.config.PingEvery, d.config.PongWait)
 	opened.read(ctx, conn, c)
 }
 
@@ -222,12 +229,40 @@ func (r *Room) read(ctx context.Context, conn *websocket.Conn, c *connection) {
 	}
 }
 
-func write(ctx context.Context, conn *websocket.Conn, c *connection) {
+func write(ctx context.Context, conn *websocket.Conn, c *connection, patience time.Duration) {
 	for encoded := range c.outbox {
-		if err := conn.Write(ctx, websocket.MessageText, encoded); err != nil {
+		if err := writeWithin(ctx, conn, encoded, patience); err != nil {
 			conn.CloseNow()
 			return
 		}
 	}
 	conn.Close(websocket.StatusPolicyViolation, "client too far behind")
+}
+
+func writeWithin(ctx context.Context, conn *websocket.Conn, encoded []byte, patience time.Duration) error {
+	ctx, stop := context.WithTimeout(ctx, patience)
+	defer stop()
+	return conn.Write(ctx, websocket.MessageText, encoded)
+}
+
+func keepAlive(ctx context.Context, conn *websocket.Conn, every, patience time.Duration) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !answersPing(ctx, conn, patience) {
+				conn.CloseNow()
+				return
+			}
+		}
+	}
+}
+
+func answersPing(ctx context.Context, conn *websocket.Conn, patience time.Duration) bool {
+	ctx, stop := context.WithTimeout(ctx, patience)
+	defer stop()
+	return conn.Ping(ctx) == nil
 }

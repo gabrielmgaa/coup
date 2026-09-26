@@ -34,8 +34,9 @@ clique, uma queda de conexão, e da 0.8 um deadline estourando — chega como `c
 `Room.inbox`, e `run()` tira **um por vez**. A corrida "alguém responde no instante em que o
 clock estoura" não é resolvida: ela não pode existir.
 
-Uma mesa tem **2 goroutines por jogador mais a da sala**: uma leitora (socket → inbox) e uma
-escritora (outbox → socket). Leitura bloqueante é Go normal; o runtime estaciona a goroutine.
+Uma mesa tem **3 goroutines por jogador mais a da sala**: uma leitora (socket → inbox), uma
+escritora (outbox → socket) e a `keepAlive`, que manda ping. Leitura bloqueante é Go normal; o
+runtime estaciona a goroutine.
 
 ## O que não pode quebrar
 
@@ -56,6 +57,13 @@ escritora (outbox → socket). Leitura bloqueante é Go normal; o runtime estaci
   já tem.
 - **A jogada é assinada pelo assento, nunca pela mensagem.** `ToMove` recebe o nome do assento
   da conexão; um campo `name` ou `by` mandado pelo cliente é ignorado.
+- **Conexão surda cai sozinha.** `keepAlive` pinga a cada `PingEvery` (15 s) e fecha a conexão
+  que não responde em `PongWait` (10 s); toda escrita tem prazo de `WriteWait` (10 s). A leitora
+  então falha e o `leave` segue o caminho normal: pausa se a partida espera por aquele assento.
+  O navegador responde ping mesmo com o JS travado, então aba congelada continua parecendo viva —
+  quem segura a mesa nesse caso é o prazo da decisão. Medido no Chromium 151 e no Brave 154: sem
+  ping, o buffer do sistema absorve de 787 a 2643 mensagens antes de a escrita travar, então o
+  prazo de escrita sozinho quase nunca dispararia — é o ping que detecta, em até 25 s.
 - **Timer é só mais um `command`.** `time.AfterFunc` entrega um `expiry` no inbox, com o ID de
   quem o armou. Chegando velho — decisão que já mudou, pausa que já acabou, sala que voltou a
   ter gente — é jogado fora. `expiry` não tem representação JSON: cliente nenhum consegue forjar.
@@ -67,10 +75,13 @@ escritora (outbox → socket). Leitura bloqueante é Go normal; o runtime estaci
   primeira carta na perda de influência, devolver as duas compradas na troca.
 - **Pausa só quando a partida depende de quem caiu.** Queda de quem não tem decisão pendente só
   aparece em `disconnected`. Queda de quem tem para o prazo e abre `Grace` (30 s).
-- **Voltou dentro da carência:** `reconnect` com o token do `welcome`, snapshot atual, e o prazo
-  reinicia cheio. **Não voltou:** o assento vira piloto automático — a partida joga o
-  `SafeMove` dele na hora, sem pausar de novo. Voltando depois, retoma o assento e o piloto
-  desliga; cair de novo dá direito a pausa nova.
+- **Prazo e carência são saldo da decisão, não recarregam.** Quem volta dentro da carência
+  (`reconnect` com o token do `welcome`) recebe o snapshot atual e o prazo continua de onde
+  parou; cair de novo na mesma decisão pausa só com o que sobrou da carência. Decisão nova — turno,
+  janela, perda de influência, troca — começa com os dois cheios. Assim cair e voltar em loop não
+  segura a mesa: o pior caso é `Deadline` + `Grace` por decisão.
+- **Não voltou:** o assento vira piloto automático — a partida joga o `SafeMove` dele na hora,
+  sem pausar de novo. Voltando depois, retoma o assento e o piloto desliga.
 - **Reconectar com a aba antiga aberta** toma o assento dela: a conexão antiga perde o assento e
   é fechada.
 - **TTL:** sala sem nenhuma conexão viva por `IdleTTL` (30 min) fecha, sai do `registry`, e quem
