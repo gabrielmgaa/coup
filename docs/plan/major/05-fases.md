@@ -81,7 +81,7 @@ nesse instante é o assunto da pausa.
 
 ---
 
-## 0.3 — A CLI
+## 0.3 — A CLI — **pronta**
 
 **Entrega:** `coup join K7QM` joga a mesma partida que o navegador, na mesma sala.
 
@@ -95,7 +95,16 @@ junto e cada mensagem nova já nasce com as duas pontas. Deixar pro fim é escre
 de uma vez contra um protocolo pronto.
 
 **Pronto quando:** um jogador no terminal e outro no navegador jogam a mesma partida até o fim,
-e os dois veem o mesmo resultado.
+e os dois veem o mesmo resultado. ✅ Coberto por `TestTerminalAndBrowserPlayTheSameGameToTheEnd`,
+que joga contra o servidor real.
+
+**Decisões tomadas na execução:**
+
+- **`coup join` sem código abre mesa nova**, como o campo vazio do navegador. Um comando a menos.
+- **Sem `bubbles`.** O log mostra as últimas 8 linhas; rolagem não pagou a dependência.
+- **`session.json` guarda nome e servidor.** O token entra no mesmo arquivo na 0.8.
+- **`engine.Character` ganhou `UnmarshalJSON`**, porque o cliente Go decodifica o mesmo `View`
+  que o servidor codifica.
 
 ---
 

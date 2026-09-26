@@ -42,6 +42,20 @@ func (c Character) LabelPtBR() string { return characterLabelPtBR[c] }
 
 func (c Character) MarshalJSON() ([]byte, error) { return json.Marshal(c.String()) }
 
+func (c *Character) UnmarshalJSON(encoded []byte) error {
+	var written string
+	if err := json.Unmarshal(encoded, &written); err != nil {
+		return err
+	}
+	character, known := CharacterByName(written)
+	if !known {
+		return &Refusal{Code: "illegal_action", Message: "personagem que não existe",
+			Received: written, Expected: CharacterNames()}
+	}
+	*c = character
+	return nil
+}
+
 func CharacterByName(name string) (Character, bool) {
 	for character, written := range characterName {
 		if written == name {

@@ -1,0 +1,96 @@
+package tui
+
+import (
+	"errors"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/gabrielmgaa/coup/internal/engine"
+	"github.com/gabrielmgaa/coup/internal/protocol"
+)
+
+type Model struct {
+	outgoing func(protocol.FromClient) tea.Cmd
+	receive  tea.Cmd
+	lobby    *protocol.LobbyView
+	game     *engine.View
+	log      []engine.Event
+	refusal  string
+	cursor   int
+	lost     error
+}
+
+func NewModel(outgoing func(protocol.FromClient) tea.Cmd, receive tea.Cmd) Model {
+	return Model{outgoing: outgoing, receive: receive}
+}
+
+func (m Model) Init() tea.Cmd { return m.receive }
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch arrived := msg.(type) {
+	case tea.KeyMsg:
+		return m.press(arrived.String())
+	case lobbyArrived:
+		m.lobby, m.refusal = &arrived.state, ""
+		return m.settle(), m.receive
+	case updateArrived:
+		m.game, m.refusal = &arrived.state, ""
+		m.log = append(m.log, arrived.events...)
+		return m.settle(), m.receive
+	case refusalArrived:
+		m.refusal = arrived.message
+		return m, m.receive
+	case connectionLost:
+		m.lost = m.explain(arrived.err)
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) press(key string) (tea.Model, tea.Cmd) {
+	switch key {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "up", "k":
+		m.cursor--
+		return m.settle(), nil
+	case "down", "j":
+		m.cursor++
+		return m.settle(), nil
+	case "enter", " ":
+		return m, m.choose()
+	}
+	return m, nil
+}
+
+func (m Model) choose() tea.Cmd {
+	available := m.choices()
+	if len(available) == 0 {
+		return nil
+	}
+	return m.outgoing(available[m.cursor].message)
+}
+
+func (m Model) settle() Model {
+	last := len(m.choices()) - 1
+	m.cursor = max(0, min(m.cursor, last))
+	return m
+}
+
+func (m Model) choices() []choice {
+	if m.game != nil {
+		return gameChoices(*m.game)
+	}
+	if m.lobby != nil {
+		return lobbyChoices(*m.lobby)
+	}
+	return nil
+}
+
+func (m Model) explain(err error) error {
+	if m.refusal != "" {
+		return errors.New(m.refusal)
+	}
+	return err
+}
+
+func (m Model) Lost() error { return m.lost }

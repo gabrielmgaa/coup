@@ -1,12 +1,24 @@
 # `cmd/coup` — o binário
 
-O único executável do projeto. `main.go` faz `switch` em `os.Args[1]`; hoje o único comando é
-`serve`. `join` (cliente de terminal) chega na 0.3.
+O único executável do projeto. `main.go` faz `switch` em `os.Args[1]`: `serve` sobe o
+servidor com o site dentro; `join` abre a mesa no terminal.
 
 ```sh
 go run ./cmd/coup serve
 go run ./cmd/coup serve -port 3000 -starting-coins 14
+go run ./cmd/coup join -name tester1          # abre uma mesa nova
+go run ./cmd/coup join K7QM                   # entra na mesa K7QM com o nome salvo
 ```
+
+## Flags do `join`
+
+| Flag | Default | Pra que serve |
+|---|---|---|
+| `-server` | `ws://localhost:8080/ws`, ou o último usado | endereço WebSocket do servidor |
+| `-name` | o último usado | seu nome na mesa; obrigatório na primeira vez |
+
+Sem código, `join` abre uma mesa nova — o mesmo que deixar o código vazio no navegador. Nome e
+servidor ficam em `~/.config/coup/session.json` (modo `0600`).
 
 ## Flags do `serve`
 
@@ -22,8 +34,9 @@ posição específica sem mexer no motor.
 
 ## O que ele monta
 
-Três coisas e nada mais: o site embutido (`web.Dist()`), o seed do RNG
-(`crypto/rand` → `rand.NewPCG`) e o handler de `internal/server`. Regra de jogo, protocolo e
+No `serve`, três coisas e nada mais: o site embutido (`web.Dist()`), o seed do RNG
+(`crypto/rand` → `rand.NewPCG`) e o handler de `internal/server`. No `join`, a sessão salva e
+`tui.Play`. Regra de jogo, protocolo e
 concorrência estão nos pacotes; aqui só se liga um no outro.
 
 Se a entropia do sistema falhar, o processo morre em vez de embaralhar com seed previsível —
