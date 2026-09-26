@@ -198,7 +198,7 @@ está depurando.
 |---|---|---|
 | `illegal_action` | ação não está em `your_actions` | **0.1** |
 | `invalid_target` | alvo não está na lista daquela ação | **0.1** |
-| `not_your_turn` | jogou fora do turno | **0.1** |
+| `not_your_turn` | jogou fora do turno, ou respondeu a uma janela que não espera por ele; `expected` traz quem ela espera | **0.1** |
 | `insufficient_coins` | custo maior que o saldo | **0.1** |
 | `coup_required` | tem 10+ moedas e tentou outra coisa | **0.1** |
 | `name_taken` | duplicado nesta sala | **0.1** |
@@ -213,8 +213,10 @@ está depurando.
 | `window_closed` | respondeu a uma janela que já resolveu | **0.4** |
 | `already_responded` | segunda resposta na mesma janela | **0.4** |
 | `invalid_token` | reconexão com token desconhecido | **0.8** |
+| `seat_taken` | outra conexão entrou com o token deste assento; esta é fechada em seguida | **pós-0.9** |
 
-Um erro é sempre resposta a **uma** mensagem daquele cliente, e nunca é difundido.
+Um erro vai sempre para **uma** conexão e nunca é difundido. Quase sempre responde a uma mensagem
+daquele cliente; `seat_taken` é a exceção, porque quem o provoca é a conexão nova.
 
 ## Informação oculta, garantida pelo compilador
 

@@ -19,8 +19,9 @@ go run ./cmd/coup join K7QM                   # entra na mesa K7QM com o nome sa
 | `-reconnect` | desligado | volta ao assento salvo (código e token do último `welcome`) |
 
 Sem código, `join` abre uma mesa nova — o mesmo que deixar o código vazio no navegador. Nome e
-servidor ficam em `~/.config/coup/session.json` (modo `0600`), junto com o código e o token do
-último assento, para o `-reconnect`.
+servidor ficam em `session.json` dentro de `coup/` na pasta de configuração do sistema
+(`os.UserConfigDir`: `~/.config/` no Linux, `~/Library/Application Support/` no macOS), em modo
+`0600`, junto com o código e o token do último assento, para o `-reconnect`.
 
 ## Flags do `serve`
 

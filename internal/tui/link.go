@@ -3,11 +3,15 @@ package tui
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/coder/websocket"
 	"github.com/gabrielmgaa/coup/internal/protocol"
 )
+
+var errServerDropped = errors.New("a conexão com o servidor caiu")
 
 type link struct {
 	ctx  context.Context
@@ -17,7 +21,7 @@ type link struct {
 func dialTable(ctx context.Context, address string) (*link, error) {
 	conn, _, err := websocket.Dial(ctx, address, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("não consegui conectar ao servidor em %s: %w", address, err)
 	}
 	return &link{ctx: ctx, conn: conn}, nil
 }

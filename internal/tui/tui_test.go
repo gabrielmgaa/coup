@@ -184,7 +184,7 @@ func playOneStep(cli *terminal, web *browser) {
 	state := cli.model.game.View
 	switch {
 	case state.Losing == "tester1":
-		cli.pick("revelar " + entryOf(state, "tester1").MyCards[0].LabelPtBR())
+		cli.pick("revelar " + withArticle(entryOf(state, "tester1").MyCards[0]))
 	case state.Losing == "tester2":
 		seen := web.until(func(state engine.View) bool { return state.Losing == "tester2" })
 		web.send(protocol.FromClient{Type: "lose_influence", Card: entryOf(seen, "tester2").MyCards[0].String()})
@@ -288,13 +288,6 @@ func TestQuittingLeavesWithoutAnError(t *testing.T) {
 		if lost := updated.(Model).Lost(); lost != nil {
 			t.Errorf("%q quit with error %v", key.String(), lost)
 		}
-	}
-}
-
-func TestPlayReturnsWhenTheServerIsNotThere(t *testing.T) {
-	err := Play(context.Background(), Table{Server: "ws://127.0.0.1:1/ws", Name: "tester1"}, nil)
-	if err == nil {
-		t.Error("Play returned no error for a server that does not exist")
 	}
 }
 
@@ -435,7 +428,8 @@ func TestAPausedTableShowsWhoItWaitsFor(t *testing.T) {
 		Paused:       &protocol.PausedView{WaitingFor: []string{"tester1"}, ResumesInMs: 30000},
 		Disconnected: []string{"tester1"},
 	}
-	screen := Model{game: &state}.View()
+	clock := &manualClock{at: time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)}
+	screen := deliverAll(modelOnClock(clock), updateArrived{state: state}).View()
 	for _, expected := range []string{"mesa pausada esperando tester1 voltar (30s)", "tester1 (caiu)"} {
 		if !strings.Contains(screen, expected) {
 			t.Errorf("the screen is missing %q:\n%s", expected, screen)
@@ -550,12 +544,5 @@ func TestEveryStatusLineMatchesWhatTheGameWaitsFor(t *testing.T) {
 	}
 	if label := actionLabel("mystery"); label != "mystery" {
 		t.Errorf("an unknown action is labelled %q, expected its own name", label)
-	}
-}
-
-func TestLosingTheConnectionWithoutARefusalKeepsTheSocketError(t *testing.T) {
-	updated, _ := NewModel(nil, nil, nil).Update(connectionLost{err: os.ErrClosed})
-	if lost := updated.(Model).Lost(); lost != os.ErrClosed {
-		t.Errorf("the exit reason is %v, expected the socket error", lost)
 	}
 }

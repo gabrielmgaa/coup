@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -186,13 +187,17 @@ func TestNobodyAnswersTheSameWindowTwice(t *testing.T) {
 	}
 }
 
-func TestTheClaimantCannotChallengeHerself(t *testing.T) {
+func TestTheClaimantAnsweringTheirOwnClaimIsToldWhoIsAwaited(t *testing.T) {
 	game := threePlayerGame(Captain, Contessa, Duke, Ambassador, Assassin, Captain)
 	apply(t, game, Act{By: "tester1", Action: Tax})
 
 	_, err := game.Apply(Respond{By: "tester1", Window: openWindowID(t, game), Answer: Pass})
-	if code := refusalFrom(t, err).Code; code != "illegal_action" {
-		t.Errorf("code %q, expected illegal_action", code)
+	refusal := refusalFrom(t, err)
+	if refusal.Code != "not_your_turn" {
+		t.Errorf("code %q, expected not_your_turn", refusal.Code)
+	}
+	if awaited, listed := refusal.Expected.([]string); !listed || !slices.Equal(awaited, []string{"tester2", "tester3"}) {
+		t.Errorf("the refusal expects %v, expected [tester2 tester3]", refusal.Expected)
 	}
 }
 
@@ -216,8 +221,8 @@ func TestAnEliminatedPlayerIsNotAskedToAnswer(t *testing.T) {
 		t.Errorf("the window waits on %v, expected only tester2", waiting)
 	}
 	_, err := game.Apply(Respond{By: "tester3", Window: openWindowID(t, game), Answer: Challenge})
-	if code := refusalFrom(t, err).Code; code != "illegal_action" {
-		t.Errorf("code %q, expected illegal_action", code)
+	if code := refusalFrom(t, err).Code; code != "not_your_turn" {
+		t.Errorf("code %q, expected not_your_turn — the window does not wait on an eliminated player", code)
 	}
 }
 

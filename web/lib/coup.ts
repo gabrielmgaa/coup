@@ -112,7 +112,12 @@ export function optionLabel(window: WindowView, option: Option): string {
   if (option.answer === 'block') return `bloquear com ${capitalized(cardLabel(option.character ?? ''))}`
   if (option.answer === 'pass') return 'deixar passar'
   const claim = window.block ? window.block.character : (window.action.claims ?? '')
-  return `contestar o ${capitalized(cardLabel(claim))}`
+  return `contestar ${cardLabelWithArticle(claim)}`
+}
+
+export function cardLabelWithArticle(name: string): string {
+  const article = name === 'contessa' ? 'a' : 'o'
+  return `${article} ${capitalized(cardLabel(name))}`
 }
 
 export function roomAddress(): string {

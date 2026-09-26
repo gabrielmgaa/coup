@@ -8,12 +8,12 @@ chega e manda de volta o que foi escolhido**. Não tem regra de Coup aqui dentro
 | | |
 |---|---|
 | `tui.go` | `Table` (servidor, nome, código) e `Play`, que disca, manda a primeira mensagem e roda o programa |
-| `link.go` | o WebSocket: `receive` vira um `tea.Msg` por mensagem, `outgoing` vira um `tea.Cmd` que escreve |
+| `link.go` | o WebSocket: `receive` vira um `tea.Msg` por mensagem, `outgoing` vira um `tea.Cmd` que escreve; falhar ao conectar ou perder a conexão vira mensagem em pt-BR |
 | `incoming.go` | decodifica o envelope do servidor em `lobbyArrived`, `updateArrived`, `refusalArrived` |
-| `model.go` | `Model`, `Init`, `Update`: teclas movem o cursor, enter manda a escolha |
-| `choices.go` | a lista de escolhas desenhada a partir de `your_actions` (e do lobby); rótulos em pt-BR |
+| `model.go` | `Model`, `Init`, `Update`: teclas movem o cursor, enter manda a escolha; guarda os instantes em que prazo e pausa terminam |
+| `choices.go` | a lista de escolhas desenhada a partir de `your_actions` (e do lobby); rótulos em pt-BR, com artigo ("a Condessa", "o Duque") |
 | `render.go` | `View`: mesa, status, log e escolhas, com Lipgloss |
-| `session.go` | `~/.config/coup/session.json` — nome, servidor, e o código e token do último assento |
+| `session.go` | `session.json` em `coup/` dentro de `os.UserConfigDir` — nome, servidor, e o código e token do último assento |
 
 ## O que não pode quebrar
 
@@ -25,14 +25,17 @@ chega e manda de volta o que foi escolhido**. Não tem regra de Coup aqui dentro
 - **O modelo não escreve na rede dentro do `Update`.** A escrita volta como `tea.Cmd` e roda fora
   do laço do Bubble Tea — o mesmo princípio do actor do servidor.
 - **Quando a sala recusa e fecha, o motivo aparece.** Se a conexão cai depois de um `error`, o
-  programa sai com a mensagem da recusa, não com o erro de socket.
+  programa sai com a mensagem da recusa; sem recusa, sai com "a conexão com o servidor caiu: "
+  seguida da causa técnica, que diz se foi endereço errado, servidor fora do ar ou rede.
 
 ## Teste
 
 `tui_test.go` joga uma partida inteira contra o servidor de verdade: um terminal (dirigido por
 teclas no `Model`) e um "navegador" (WebSocket cru), até alguém vencer, e confere que os dois
 viram o mesmo vencedor. Não precisa de TTY: o laço do Bubble Tea é reproduzido chamando
-`Update` com o que o socket entrega. O cursor tem o seu próprio arquivo, `cursor_test.go`.
+`Update` com o que o socket entrega. Os outros arquivos de teste cobrem um assunto cada:
+`cursor_test.go`, `choices_test.go`, `render_test.go` (com relógio manual no campo `now` do
+`Model`) e `link_test.go` (servidor ausente e servidor que cai).
 
 ## Desvio do plano
 

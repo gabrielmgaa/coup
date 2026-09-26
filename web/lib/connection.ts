@@ -14,6 +14,7 @@ import {
 const retryDelayMs = 1000
 const maxRetries = 30
 const lostSessionCodes = ['invalid_token', 'room_not_found']
+const seatTakenCode = 'seat_taken'
 
 export type Table = {
   lobby: LobbyView | null
@@ -22,11 +23,13 @@ export type Table = {
   log: GameEvent[]
   refusal: string | null
   reconnecting: boolean
+  displaced: boolean
   deadline: number
   pauseDeadline: number
   enter: (first: FromClient) => void
   send: (message: FromClient) => void
   dismissEnding: () => void
+  reclaimSeat: () => void
 }
 
 export function useTable(): Table {
@@ -36,6 +39,7 @@ export function useTable(): Table {
   const [log, setLog] = useState<GameEvent[]>([])
   const [refusal, setRefusal] = useState<string | null>(null)
   const [reconnecting, setReconnecting] = useState(false)
+  const [displaced, setDisplaced] = useState(false)
   const [deadline, setDeadline] = useState(0)
   const [pauseDeadline, setPauseDeadline] = useState(0)
   const socket = useRef<WebSocket | null>(null)
@@ -50,7 +54,12 @@ export function useTable(): Table {
       return
     }
     if (message.type === 'error') {
-      if (lostSessionCodes.includes(message.code)) forgetSession()
+      if (message.code === seatTakenCode) {
+        socket.current = null
+        setDisplaced(true)
+        return
+      }
+      if (lostSessionCodes.includes(message.code)) leaveTable()
       setRefusal(message.message)
       return
     }
@@ -69,6 +78,25 @@ export function useTable(): Table {
     setDeadline(message.state.closes_in_ms ? Date.now() + message.state.closes_in_ms : 0)
     setPauseDeadline(message.state.paused ? Date.now() + message.state.paused.resumes_in_ms : 0)
     setLog((previous) => [...previous, ...message.events])
+  }
+
+  function leaveTable() {
+    forgetSession()
+    current.current = null
+    setGame(null)
+    setLobby(null)
+    setEnded(null)
+    setLog([])
+  }
+
+  function reclaimSeat() {
+    setDisplaced(false)
+    const saved = loadSession()
+    if (!saved) {
+      leaveTable()
+      return
+    }
+    enter({ type: 'reconnect', ...saved })
   }
 
   function retry() {
@@ -108,11 +136,13 @@ export function useTable(): Table {
     log,
     refusal,
     reconnecting,
+    displaced,
     deadline,
     pauseDeadline,
     enter,
     send,
     dismissEnding: () => setEnded(null),
+    reclaimSeat,
   }
 }
 

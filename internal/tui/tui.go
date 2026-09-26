@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/gabrielmgaa/coup/internal/engine"
@@ -33,7 +34,7 @@ func Play(ctx context.Context, table Table, remember func(room, token string) er
 	}
 	defer opened.close()
 	if err := opened.write(table.firstMessage()); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errServerDropped, err)
 	}
 	final, err := tea.NewProgram(NewModel(opened.outgoing, opened.receive, rememberCmd(remember)), options...).Run()
 	if err != nil {

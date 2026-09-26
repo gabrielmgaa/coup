@@ -150,6 +150,10 @@ func (g *Game) checkResponse(r Respond) (int, error) {
 		return nobody, &Refusal{Code: "already_responded", Message: "cada um responde uma vez por janela",
 			Received: r.By, Expected: g.waitingOn()}
 	}
+	if responder != nobody && !g.window.pending[responder] {
+		return nobody, &Refusal{Code: "not_your_turn", Message: "a janela não espera resposta sua",
+			Received: r.By, Expected: g.waitingOn()}
+	}
 	offered := g.optionsFor(responder)
 	for _, option := range offered {
 		if option == (Option{Answer: r.Answer, Character: r.Character}) {

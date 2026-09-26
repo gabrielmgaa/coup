@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { actionLabel, capitalized, cardLabel, type AvailableAction, type GameState, type Send } from '@/lib/coup'
+import { actionLabel, cardLabelWithArticle, type AvailableAction, type GameState, type Send } from '@/lib/coup'
 import { cn } from '@/lib/utils'
 import { CardChip, Coins, PlayingCard } from './cards'
 import { Badge } from './ui/badge'
@@ -70,7 +70,7 @@ function HandCards({ cards, revealing, send }: { cards: string[]; revealing: boo
             onClick={() => send({ type: 'lose_influence', card })}
           >
             <PlayingCard card={card} />
-            revelar o {capitalized(cardLabel(card))}
+            revelar {cardLabelWithArticle(card)}
           </Button>
         ) : (
           <PlayingCard key={position} card={card} />

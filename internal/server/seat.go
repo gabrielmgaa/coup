@@ -3,6 +3,8 @@ package server
 import (
 	"crypto/rand"
 	"crypto/subtle"
+	"slices"
+	"strings"
 
 	"github.com/gabrielmgaa/coup/internal/engine"
 	"github.com/gabrielmgaa/coup/internal/protocol"
@@ -53,7 +55,7 @@ func (r *Room) checkJoin(name string) *engine.Refusal {
 		return &engine.Refusal{Code: "room_full", Message: "a sala está cheia",
 			Received: len(r.seats) + 1, Expected: engine.MaxPlayers}
 	}
-	if r.seatNamed(name) != nil {
+	if r.nameTaken(name) {
 		return &engine.Refusal{Code: "name_taken", Message: "já tem alguém com esse nome na sala",
 			Received: name, Expected: "um nome ainda não usado nesta sala"}
 	}
@@ -68,8 +70,10 @@ func (r *Room) reconnect(c *connection, token string) {
 		return
 	}
 	if returning.connected() {
-		returning.conn.seat = nil
-		returning.conn.drop()
+		displaced := returning.conn
+		displaced.seat = nil
+		r.turnAway(displaced, &engine.Refusal{Code: "seat_taken", Message: "você abriu esta mesa em outro lugar",
+			Received: "um reconnect com o token deste assento", Expected: "uma conexão por assento"})
 	}
 	returning.conn = c
 	returning.autopilot = false
@@ -107,6 +111,10 @@ func (r *Room) removeSeat(target *seat) {
 		}
 	}
 	r.seats = remaining
+}
+
+func (r *Room) nameTaken(name string) bool {
+	return slices.ContainsFunc(r.seats, func(seated *seat) bool { return strings.EqualFold(seated.name, name) })
 }
 
 func (r *Room) seatNamed(name string) *seat {

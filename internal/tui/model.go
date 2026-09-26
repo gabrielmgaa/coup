@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -13,21 +14,23 @@ import (
 type tickArrived struct{}
 
 type Model struct {
-	outgoing func(protocol.FromClient) tea.Cmd
-	receive  tea.Cmd
-	remember func(room, token string) tea.Cmd
-	lobby    *protocol.LobbyView
-	game     *protocol.GameState
-	log      []engine.Event
-	refusal  string
-	cursor   int
-	offered  []choice
-	closesAt time.Time
-	lost     error
+	outgoing  func(protocol.FromClient) tea.Cmd
+	receive   tea.Cmd
+	remember  func(room, token string) tea.Cmd
+	lobby     *protocol.LobbyView
+	game      *protocol.GameState
+	log       []engine.Event
+	refusal   string
+	cursor    int
+	offered   []choice
+	closesAt  time.Time
+	resumesAt time.Time
+	lost      error
+	now       func() time.Time
 }
 
 func NewModel(outgoing func(protocol.FromClient) tea.Cmd, receive tea.Cmd, remember func(room, token string) tea.Cmd) Model {
-	return Model{outgoing: outgoing, receive: receive, remember: remember}
+	return Model{outgoing: outgoing, receive: receive, remember: remember, now: time.Now}
 }
 
 func (m Model) Init() tea.Cmd { return tea.Batch(m.receive, tick()) }
@@ -48,10 +51,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lobby, m.game, m.log, m.refusal = &arrived.state, nil, nil, ""
 		return m.settle(), m.receive
 	case updateArrived:
-		m.game, m.refusal = &arrived.state, ""
-		m.closesAt = time.Now().Add(time.Duration(arrived.state.ClosesInMs) * time.Millisecond)
-		m.log = append(m.log, arrived.events...)
-		return m.settle(), m.receive
+		return m.applyUpdate(arrived), m.receive
 	case refusalArrived:
 		m.refusal = arrived.message
 		return m, m.receive
@@ -63,6 +63,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 	return m, nil
+}
+
+func (m Model) applyUpdate(arrived updateArrived) Model {
+	m.game, m.refusal = &arrived.state, ""
+	m.closesAt = m.now().Add(time.Duration(arrived.state.ClosesInMs) * time.Millisecond)
+	if arrived.state.Paused != nil {
+		m.resumesAt = m.now().Add(time.Duration(arrived.state.Paused.ResumesInMs) * time.Millisecond)
+	}
+	m.log = append(m.log, arrived.events...)
+	return m.settle()
 }
 
 func (m Model) press(key string) (tea.Model, tea.Cmd) {
@@ -125,11 +135,11 @@ func (m Model) choices() []choice {
 	return nil
 }
 
-func (m Model) explain(err error) error {
+func (m Model) explain(cause error) error {
 	if m.refusal != "" {
 		return errors.New(m.refusal)
 	}
-	return err
+	return fmt.Errorf("%w: %w", errServerDropped, cause)
 }
 
 func (m Model) Lost() error { return m.lost }

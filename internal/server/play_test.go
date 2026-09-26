@@ -168,8 +168,10 @@ func TestAWindowAnswerSentByAnotherSeatCannotSpeakForSomeoneElse(t *testing.T) {
 		"answer": "pass", "by": playing.someoneElse(claimant), "name": playing.someoneElse(claimant)})
 	playing.seats[claimant].conn.Write(context.Background(), websocket.MessageText, forged)
 
-	if code := playing.seats[claimant].waitFor("error").Code; code != "illegal_action" {
-		t.Errorf("code %q, expected illegal_action — the claimant tried to pass on behalf of another seat", code)
+	refused := playing.seats[claimant].waitFor("error")
+	if refused.Code != "not_your_turn" || refused.Received != claimant {
+		t.Errorf("code %q received %v, expected not_your_turn received %s — the answer is signed by the seat, not by the forged field",
+			refused.Code, refused.Received, claimant)
 	}
 }
 

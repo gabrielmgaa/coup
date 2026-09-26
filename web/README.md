@@ -14,12 +14,13 @@ de Coup aqui dentro, e não pode ganhar nenhuma.**
 | `components.json` | a configuração do shadcn/ui: estilo `new-york`, aliases `@/components/ui` e `@/lib/utils`, ícones `lucide` |
 | `components/ui/` | os componentes shadcn — `button`, `badge`, `card`, `input`, `label`, `checkbox`, `alert`, `progress`, `separator` — com as variantes reescritas na direção Esmalte |
 | `lib/utils.ts` | `cn`, do pacote `cn`, para juntar classes |
-| `lib/coup.ts` | os tipos do fio (`GameState`, `WindowView`, `FromServer`…), os rótulos pt-BR (`actionLabel`, `cardLabel`, `optionLabel`) e a sessão no `localStorage` |
-| `lib/connection.ts` | `useTable`: WebSocket, `welcome` salvo, reconexão automática, a última partida para a tela de fim; `useSecondsLeft` para os relógios |
+| `lib/coup.ts` | os tipos do fio (`GameState`, `WindowView`, `FromServer`…), os rótulos pt-BR (`actionLabel`, `cardLabel`, `cardLabelWithArticle`, `optionLabel`) e a sessão no `localStorage` |
+| `lib/connection.ts` | `useTable`: WebSocket, `welcome` salvo, reconexão automática (que para em `seat_taken`), volta à entrada quando a sessão se perde, a última partida para a tela de fim; `useSecondsLeft` para os relógios |
 | `lib/palette.ts` | a cor de cada carta, como classe Tailwind escrita por extenso |
 | `components/cards.tsx` | `PlayingCard` (glifo, legenda, nome), o verso, o chip de carta revelada, as moedas e a narração que pinta o nome da carta na cor dela |
-| `components/Coup.tsx` | escolhe a tela: entrada, lobby, fim de partida ou mesa |
+| `components/Coup.tsx` | escolhe a tela: entrada, lobby, fim de partida, mesa, ou aviso de mesa aberta em outra aba |
 | `components/JoinForm.tsx`, `Lobby.tsx`, `Ending.tsx` | as três telas fora da partida |
+| `components/Displaced.tsx` | o aviso para a aba que perdeu o assento para outra (`seat_taken`): ela para de reconectar e só volta pelo botão |
 | `components/Table.tsx` | a mesa: barra do topo, e as quatro áreas abaixo |
 | `components/Seats.tsx` | os outros assentos; quem está na vez vira esmalte preto, quem caiu fica dourado, quem saiu fica riscado |
 | `components/Arena.tsx` | o centro: a janela de reação (com a barra de tempo), a pausa, ou a última jogada |

@@ -147,12 +147,16 @@ func renderWindow(window engine.WindowView) string {
 func (m Model) renderClock() string {
 	if m.game.Paused != nil {
 		return refusalStyle.Render(fmt.Sprintf("mesa pausada esperando %s voltar (%ds)",
-			strings.Join(m.game.Paused.WaitingFor, ", "), m.game.Paused.ResumesInMs/1000))
+			strings.Join(m.game.Paused.WaitingFor, ", "), m.secondsUntil(m.resumesAt)))
 	}
 	if m.game.ClosesInMs == 0 {
 		return ""
 	}
 	return faintStyle.Render(fmt.Sprintf("%ds para decidir", max(0, int(time.Until(m.closesAt).Seconds()))))
+}
+
+func (m Model) secondsUntil(moment time.Time) int {
+	return max(0, int(moment.Sub(m.now()).Seconds()))
 }
 
 func renderLog(events []engine.Event) string {

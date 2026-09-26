@@ -18,7 +18,8 @@ mora o desenho de concorrência inteiro do projeto.
 O endereço é sempre `/ws`, sem query param. **A primeira mensagem decide a sala**: `create_room`
 abre uma nova, `join` carrega o código de quem já tem um, `reconnect` carrega código e token.
 Quem senta recebe `welcome` com o código e o token do assento — só ele recebe.
-`accept` lê essa primeira mensagem, valida o nome (2–16 caracteres, aparado) e só então entrega
+`accept` lê essa primeira mensagem, valida o nome (2–16 caracteres, aparado; repetido na sala é
+recusado sem distinguir maiúsculas, para `TESTER1` não se passar por `tester1`) e só então entrega
 a conexão ao goroutine da sala. Nome inválido nunca cria sala órfã, porque a checagem vem antes
 do registro.
 
@@ -82,8 +83,9 @@ runtime estaciona a goroutine.
   segura a mesa: o pior caso é `Deadline` + `Grace` por decisão.
 - **Não voltou:** o assento vira piloto automático — a partida joga o `SafeMove` dele na hora,
   sem pausar de novo. Voltando depois, retoma o assento e o piloto desliga.
-- **Reconectar com a aba antiga aberta** toma o assento dela: a conexão antiga perde o assento e
-  é fechada.
+- **Reconectar com a aba antiga aberta** toma o assento dela: a conexão antiga recebe
+  `seat_taken` e é fechada. O site para de reconectar ao ver esse código, senão as duas abas
+  brigariam pelo assento para sempre.
 - **TTL:** sala sem nenhuma conexão viva por `IdleTTL` (30 min) fecha, sai do `registry`, e quem
   tentar entrar recebe `room_not_found`. `deliver` usa `done` para nunca travar mandando para
   uma sala que já fechou.

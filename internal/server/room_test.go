@@ -19,6 +19,7 @@ import (
 type received struct {
 	Type     string `json:"type"`
 	Code     string `json:"code"`
+	Message  string `json:"message"`
 	Token    string `json:"token"`
 	Received any    `json:"received"`
 	Expected any    `json:"expected"`

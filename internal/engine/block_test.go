@@ -109,8 +109,8 @@ func TestTheBlockerCannotChallengeHerOwnBlock(t *testing.T) {
 	blockWith(t, game, "tester3", Duke)
 
 	_, err := game.Apply(Respond{By: "tester3", Window: openWindowID(t, game), Answer: Challenge})
-	if code := refusalFrom(t, err).Code; code != "illegal_action" {
-		t.Errorf("code %q, expected illegal_action", code)
+	if code := refusalFrom(t, err).Code; code != "not_your_turn" {
+		t.Errorf("code %q, expected not_your_turn — the block window does not wait on its own blocker", code)
 	}
 }
 

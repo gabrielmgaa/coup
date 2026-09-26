@@ -50,7 +50,7 @@ func revealChoices(state engine.View) []choice {
 	choices := []choice{}
 	for _, card := range myCards(state) {
 		choices = append(choices, choice{
-			label:   "revelar " + card.LabelPtBR(),
+			label:   "revelar " + withArticle(card),
 			message: protocol.FromClient{Type: "lose_influence", Card: card.String()},
 		})
 	}
@@ -92,13 +92,20 @@ func optionLabel(window engine.WindowView, option engine.Option) string {
 	switch option.Answer {
 	case engine.Challenge:
 		if window.Block != nil {
-			return fmt.Sprintf("contestar o %s de %s", window.Block.Character.LabelPtBR(), window.Block.By)
+			return fmt.Sprintf("contestar %s de %s", withArticle(window.Block.Character), window.Block.By)
 		}
-		return fmt.Sprintf("contestar o %s de %s", window.Action.Claims.LabelPtBR(), window.Action.By)
+		return fmt.Sprintf("contestar %s de %s", withArticle(window.Action.Claims), window.Action.By)
 	case engine.Block:
 		return "bloquear com " + option.Character.LabelPtBR()
 	}
 	return "deixar passar"
+}
+
+func withArticle(card engine.Character) string {
+	if card == engine.Contessa {
+		return "a " + card.LabelPtBR()
+	}
+	return "o " + card.LabelPtBR()
 }
 
 func actionChoices(action engine.AvailableAction) []choice {
