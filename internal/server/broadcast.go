@@ -47,7 +47,8 @@ func (r *Room) lobbyFor(seated *seat) protocol.LobbyView {
 	for _, other := range r.seats {
 		seats = append(seats, protocol.SeatView{Name: other.name, Ready: other.ready})
 	}
-	return protocol.LobbyView{Room: r.code, You: seated.name, Host: r.host(), Players: seats}
+	return protocol.LobbyView{Room: r.code, You: seated.name, Host: r.host(), Players: seats,
+		Options: r.options, LastWinner: r.winner}
 }
 
 func (r *Room) turnAway(c *connection, reason *engine.Refusal) {

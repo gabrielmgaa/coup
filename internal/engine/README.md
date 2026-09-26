@@ -59,6 +59,15 @@ turno** — ou abrindo uma perda de influência, ou chamando `proceed(endTurn)`.
 `ID` da janela é o `decision` do momento em que ela abriu, e é assim que uma resposta atrasada é
 reconhecida (`window_closed`).
 
+## Opções e começo
+
+`NewGame(names, rng, Setup)`: `Setup.InitialCoins` (0 = livreto), `Setup.Starter` (quem abre; vazio
+ou desconhecido = sorteio) e `Setup.Options.IndependentReactions`, que faz a reabertura
+só-bloqueio ignorar `reacted`. As opções viajam no snapshot, em `options`.
+
+`fallback.go` expõe o que o servidor precisa para o relógio sem o motor saber que existe relógio:
+`Decision()`, `Awaiting()`, `SafeMove(name)` e `Winner()`.
+
 ## O que não entra aqui
 
 Deadline, `time`, WebSocket, JSON de envelope, código de sala, host, reconexão. Nada disso é regra

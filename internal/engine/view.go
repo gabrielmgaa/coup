@@ -7,6 +7,7 @@ type View struct {
 	Losing        string            `json:"losing,omitempty"`
 	Winner        string            `json:"winner,omitempty"`
 	DeckRemaining int               `json:"deck_remaining"`
+	Options       Options           `json:"options"`
 	Players       []PlayerView      `json:"players"`
 	Window        *WindowView       `json:"window"`
 	YourActions   []AvailableAction `json:"your_actions"`
@@ -54,6 +55,7 @@ func ViewFor(g *Game, name string) View {
 		You:           name,
 		Winner:        g.winner,
 		DeckRemaining: len(g.deck),
+		Options:       g.options,
 		YourActions:   []AvailableAction{},
 	}
 	if g.phase != Finished {

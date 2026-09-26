@@ -126,7 +126,7 @@ func TestDeckHasFifteenCardsAndElevenAreLeft(t *testing.T) {
 			t.Errorf("%s appears %d times in the base deck, expected 3", character, count[character])
 		}
 	}
-	game, err := NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), RulebookCoins)
+	game, err := NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), Setup{})
 	if err != nil {
 		t.Fatalf("two players was refused: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestCoupOnTheLastCardNarratesFourEventsInOrder(t *testing.T) {
 func TestSevenPlayersIsRefusedInsteadOfDealingFromAnEmptyDeck(t *testing.T) {
 	names := []string{"tester1", "tester2", "tester3", "tester4", "tester5", "tester6", "tester7"}
 
-	game, err := NewGame(names, rand.New(rand.NewPCG(1, 2)), RulebookCoins)
+	game, err := NewGame(names, rand.New(rand.NewPCG(1, 2)), Setup{})
 	if game != nil {
 		t.Error("a game was dealt to 7 players; the base deck only holds 15 cards")
 	}
@@ -427,7 +427,7 @@ func TestSevenPlayersIsRefusedInsteadOfDealingFromAnEmptyDeck(t *testing.T) {
 func TestSixPlayersLeavesThreeCardsInTheDeck(t *testing.T) {
 	names := []string{"tester1", "tester2", "tester3", "tester4", "tester5", "tester6"}
 
-	game, err := NewGame(names, rand.New(rand.NewPCG(1, 2)), RulebookCoins)
+	game, err := NewGame(names, rand.New(rand.NewPCG(1, 2)), Setup{})
 	if err != nil {
 		t.Fatalf("six players was refused: %v", err)
 	}

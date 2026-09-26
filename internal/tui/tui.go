@@ -4,14 +4,16 @@ import (
 	"context"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/gabrielmgaa/coup/internal/engine"
 	"github.com/gabrielmgaa/coup/internal/protocol"
 )
 
 type Table struct {
-	Server string
-	Name   string
-	Room   string
-	Token  string
+	Server  string
+	Name    string
+	Room    string
+	Token   string
+	Options engine.Options
 }
 
 func (t Table) firstMessage() protocol.FromClient {
@@ -19,7 +21,7 @@ func (t Table) firstMessage() protocol.FromClient {
 	case t.Token != "":
 		return protocol.FromClient{Type: "reconnect", Room: t.Room, Token: t.Token}
 	case t.Room == "":
-		return protocol.FromClient{Type: "create_room", Name: t.Name}
+		return protocol.FromClient{Type: "create_room", Name: t.Name, Options: t.Options}
 	}
 	return protocol.FromClient{Type: "join", Room: t.Room, Name: t.Name}
 }

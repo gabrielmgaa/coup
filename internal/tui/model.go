@@ -43,7 +43,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case welcomeArrived:
 		return m, tea.Batch(m.remember(arrived.room, arrived.token), m.receive)
 	case lobbyArrived:
-		m.lobby, m.game, m.refusal = &arrived.state, nil, ""
+		m.lobby, m.game, m.log, m.refusal = &arrived.state, nil, nil, ""
 		return m.settle(), m.receive
 	case updateArrived:
 		m.game, m.refusal = &arrived.state, ""

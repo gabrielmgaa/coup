@@ -43,6 +43,12 @@ func (m Model) View() string {
 
 func renderLobby(lobby protocol.LobbyView) string {
 	lines := []string{fmt.Sprintf("mesa %s", titleStyle.Render(lobby.Room))}
+	if lobby.LastWinner != "" {
+		lines = append(lines, titleStyle.Render(lobby.LastWinner+" venceu a última partida e começa a próxima"))
+	}
+	if lobby.Options.IndependentReactions {
+		lines = append(lines, faintStyle.Render("regra da casa: reações independentes"))
+	}
 	for _, seat := range lobby.Players {
 		status := "esperando"
 		if seat.Ready {

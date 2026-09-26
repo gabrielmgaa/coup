@@ -12,7 +12,9 @@ Um arquivo só, `protocol.go`, e ele é pequeno de propósito.
 | `FromClient` | tudo que chega: `type`, e os campos opcionais `room`, `name`, `ready`, `action`, `target`, `card`, `window`, `answer`, `character`, `cards` |
 | `Update` | `{"type":"update","state":…,"events":[…]}` — o snapshot e a narração, **juntos, sempre** |
 | `RefusalMessage` | `{"type":"error", …}` — o `engine.Refusal` com um `type` na frente |
-| `Lobby` | `{"type":"lobby","state":{room, you, host, players:[{name, ready}]}}` — antes de a partida começar |
+| `Lobby` | `{"type":"lobby","state":{room, you, host, players:[{name, ready}], options, last_winner?}}` — antes de a partida e entre partidas |
+| `GameState` | o `engine.View` embutido, mais o que é da sala: `room`, `closes_in_ms`, `paused`, `disconnected` |
+| `Welcome` | `{"type":"welcome","room":…,"token":…}` — só para quem acabou de sentar |
 
 **`lobby` e `update` são mensagens diferentes de propósito.** O lobby é estado de sala — quem
 sentou, quem marcou pronto, quem é host — e o motor não sabe nada disso. O `update` é

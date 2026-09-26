@@ -469,6 +469,31 @@ func TestAFailedSessionSaveIsShownWithoutStoppingTheGame(t *testing.T) {
 	}
 }
 
+func TestTheLobbyNamesTheLastWinnerAndTheHouseRule(t *testing.T) {
+	lobby := protocol.LobbyView{Room: "K7QM", You: "tester1", Host: "tester1", LastWinner: "tester2",
+		Options: engine.Options{IndependentReactions: true}, Players: []protocol.SeatView{{Name: "tester1"}}}
+	screen := Model{lobby: &lobby}.View()
+	for _, expected := range []string{"tester2 venceu a última partida", "reações independentes"} {
+		if !strings.Contains(screen, expected) {
+			t.Errorf("the lobby screen is missing %q:\n%s", expected, screen)
+		}
+	}
+	opening := Table{Name: "tester1", Options: engine.Options{IndependentReactions: true}}.firstMessage()
+	if !opening.Options.IndependentReactions {
+		t.Errorf("create_room left without the house rule: %+v", opening)
+	}
+}
+
+func TestBackInTheLobbyTheOldLogIsCleared(t *testing.T) {
+	model := NewModel(nil, nil, nil)
+	updated, _ := model.Update(updateArrived{state: protocol.GameState{View: engine.View{You: "tester1"}},
+		events: []engine.Event{{N: 1, Text: "tester1 pegou Renda."}}})
+	updated, _ = updated.Update(lobbyArrived{state: protocol.LobbyView{Room: "K7QM", You: "tester1"}})
+	if final := updated.(Model); final.game != nil || len(final.log) != 0 {
+		t.Errorf("back in the lobby the terminal kept game %v and %d log lines", final.game, len(final.log))
+	}
+}
+
 func TestTheFirstMessageDependsOnWhatTheTableKnows(t *testing.T) {
 	for _, scenario := range []struct {
 		table    Table

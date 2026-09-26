@@ -2,8 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Open source implementation of the board game **Coup**, playable in the browser and (from
-phase 0.3) in the terminal. Authoritative Go server, pure rules engine, typed event protocol.
+Open source implementation of the board game **Coup**, playable in the browser and in the
+terminal. Authoritative Go server, pure rules engine, typed event protocol.
 One binary with the site inside it.
 
 ## Language split — the rule that trips everyone
@@ -32,13 +32,12 @@ cd web && pnpm install && pnpm dev    # :5173, hot reload
 go run ./cmd/coup serve               # :8080
 
 # release — ONE process. pnpm build MUST come first; go build embeds web/dist.
-cd web && pnpm build
-go build -o coup ./cmd/coup && ./coup serve
+make build && ./coup serve
+make release                           # static binaries for linux and macos in release/
+./coup join -name tester1              # terminal client; no code opens a new table
 
 # verify, one at a time, never in parallel
-go test -race -count=1 ./...
-go vet ./... && gofmt -l .
-cd web && pnpm build && pnpm lint     # build runs tsc -b; lint is oxlint
+make verify                           # go test -race, go vet, gofmt, pnpm build, pnpm lint
 
 # a single test, or one group
 go test ./internal/engine -run TestCoupChargesSevenOnDeclaration -v
@@ -55,8 +54,8 @@ the second Coup takes ~29 turns of clicking.
 ### The actor: one owner goroutine per room, zero mutexes
 
 `internal/server/room.go` is the whole concurrency design. A `Room` owns its `*engine.Game`;
-nothing else can reach it. Every input — a click, a disconnect, and (from 0.8) a deadline
-firing — arrives as a `command` on `Room.inbox`, and `run()` pulls one at a time. The race
+nothing else can reach it. Every input — a click, a disconnect, a deadline firing — arrives as a
+`command` on `Room.inbox`, and `run()` pulls one at a time. The race
 "someone answers at the instant the clock expires" does not get resolved, it **cannot exist**.
 
 Two consequences you must preserve:
@@ -69,8 +68,10 @@ Two consequences you must preserve:
 - **A room has 2 goroutines per player plus its own**: a reader (socket → inbox) and a writer
   (outbox → socket). Blocking reads are normal Go; the runtime parks them.
 
-Phase 0.1 has exactly **one room, no code** (`newRoom` is called once in `New`). The
-`map[code]*Room` registry and `create_room` arrive in 0.2.
+Rooms live in the `registry` (`map[code]*Room`, the only mutex in the server). A connection with
+no seat may only send `join` or `reconnect`; once seated, those are refused — that is what stops
+a client from renaming itself or trying someone else's token. Timers (`clock.go`) are commands
+too, carrying the ID of what armed them, and a stale one is dropped.
 
 ### Hidden information is enforced by the compiler
 
@@ -93,16 +94,16 @@ in TypeScript.
 
 ### The client knows no rules
 
-The server sends `your_actions` (what is legal right now, targets already filtered) and, from
-0.4, `your_options` for the open window. React and the future Bubble Tea client are pure
+The server sends `your_actions` (what is legal right now, targets already filtered),
+`your_options` for the open window, and `your_returns` during an exchange. React and the future Bubble Tea client are pure
 renderers: draw buttons from a list, send back what was clicked. `web/src/App.tsx` has no game
 rule in it, and must not gain one.
 
 ### The engine has no clock
 
-`Apply` is pure given a `*rand.Rand`. Deadlines belong to the server: from 0.8, a
-`time.AfterFunc` publishes a `Timeout` command into the same inbox, carrying the window ID —
-a stale timeout is recognized by ID and thrown away. This is what lets the engine suite run
+`Apply` is pure given a `*rand.Rand`. Deadlines belong to the server: a `time.AfterFunc`
+publishes an `expiry` into the same inbox carrying `game.Decision()`; a stale one is recognized
+by ID and thrown away, and a live one plays `game.SafeMove(name)` for everyone awaited. This is what lets the engine suite run
 with no fake clock, no `Sleep`, and no flakes.
 
 RNG is injected, not mocked: tests use `rand.New(rand.NewPCG(1, 2))`, production seeds from
@@ -111,8 +112,8 @@ RNG is injected, not mocked: tests use `rand.New(rand.NewPCG(1, 2))`, production
 
 ### Rules live in a table
 
-`internal/engine/rules.go` holds one row per action (`Cost`, `NeedsTarget`, `Effect`, and from
-0.5 `BlockedBy`/`Claims`). Two facts are **derived, never stored**: challengeable = "claims a
+`internal/engine/rules.go` holds one row per action (`Cost`, `Claims`, `NeedsTarget`,
+`BlockedBy`, `ValidTarget`, `Declaration`, `Effect`). Two facts are **derived, never stored**: challengeable = "claims a
 character", and who may block = "has a target → only the target; no target → anyone". The
 money asymmetry of Coup (a successful challenge refunds the cost, a successful block does not)
 must stay in that one place.
@@ -129,14 +130,14 @@ it lives in `web/embed.go` rather than in `server` or `cmd`.
 ## Working method in this repo
 
 `docs/plan/major/` is the source of truth for scope and sequencing — read `README.md` there
-first, then `05-fases.md` for the current phase. Phases 0.1 (done) through 0.9 each have a
-verifiable "pronto quando"; the core closes at 0.9 and nothing outside it gets built early.
+first, then `05-fases.md`. Phases 0.1 through 0.9 are all done, each with its "pronto quando"
+and the decisions taken while building it; the core is closed and anything new is outside it.
 The decisions in that README were each stress-tested before being written down: **do not
 reopen one without a new fact.** Two of them deliberately contradict the brief and are marked
 as such.
 
 **Every package and top-level folder carries its own `README.md`** — `cmd/coup`,
-`internal/engine`, `internal/protocol`, `internal/server`, `web`. That is where a fact about a
+`internal/engine`, `internal/protocol`, `internal/server`, `internal/tui`, `web`. That is where a fact about a
 folder goes, since comments do not exist here: what lives inside, which invariant must not
 break, what does not belong. Changed a package's shape? Its README changes in the same commit.
 

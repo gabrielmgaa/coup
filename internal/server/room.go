@@ -19,16 +19,18 @@ type command struct {
 }
 
 type Room struct {
-	inbox  chan command
-	done   chan struct{}
-	closed bool
-	seats  []*seat
-	game   *engine.Game
-	rng    *rand.Rand
-	config Config
-	code   string
-	forget func(code string)
-	clock  clock
+	inbox   chan command
+	done    chan struct{}
+	closed  bool
+	seats   []*seat
+	game    *engine.Game
+	rng     *rand.Rand
+	config  Config
+	options engine.Options
+	winner  string
+	code    string
+	forget  func(code string)
+	clock   clock
 }
 
 func newRoom(rng *rand.Rand, config Config, code string, forget func(code string)) *Room {
@@ -101,7 +103,8 @@ func (r *Room) start(received command) {
 		r.refuse(received.from, refusal)
 		return
 	}
-	dealt, err := engine.NewGame(r.names(), r.rng, r.config.InitialCoins)
+	dealt, err := engine.NewGame(r.names(), r.rng,
+		engine.Setup{InitialCoins: r.config.InitialCoins, Starter: r.winner, Options: r.options})
 	if err != nil {
 		r.refuse(received.from, err)
 		return
@@ -155,6 +158,22 @@ func (r *Room) afterChange(events []engine.Event) {
 	events = append(events, r.runAutopilot()...)
 	r.settleClock()
 	r.broadcast(events)
+	if r.game.Winner() != "" {
+		r.backToLobby()
+	}
+}
+
+func (r *Room) backToLobby() {
+	r.winner = r.game.Winner()
+	r.game = nil
+	for _, seated := range r.seats {
+		seated.ready = false
+		seated.autopilot = false
+		if !seated.connected() {
+			r.removeSeat(seated)
+		}
+	}
+	r.broadcast(nil)
 }
 
 func (r *Room) runAutopilot() []engine.Event {

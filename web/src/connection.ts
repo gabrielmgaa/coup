@@ -52,6 +52,7 @@ export function useTable(): Table {
     if (message.type === 'lobby') {
       setLobby(message.state)
       setGame(null)
+      setLog([])
       return
     }
     setGame(message.state)

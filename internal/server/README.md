@@ -80,4 +80,6 @@ escritora (outbox → socket). Leitura bloqueante é Go normal; o runtime estaci
 ## Estado de hoje (0.8)
 
 Salas com código de 4 caracteres sem `O`, `0`, `I` e `1`; lobby com pronto e host; teto de 6;
-prazo por decisão, pausa, reconexão por token e TTL. O fim da partida volta para o lobby na 0.9.
+prazo por decisão, pausa, reconexão por token e TTL. O fim da partida volta para o lobby com os
+mesmos assentos conectados e o mesmo código; quem venceu começa a próxima (`Setup.Starter`), e a
+opção `independent_reactions` escolhida no `create_room` vale para todas as partidas da sala.

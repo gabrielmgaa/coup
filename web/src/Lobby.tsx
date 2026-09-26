@@ -13,6 +13,8 @@ export function Lobby({ lobby, send, refusal }: { lobby: LobbyView; send: Send; 
         mesa <strong>{lobby.room}</strong>
       </p>
       <p className="hint">convide pelo link {invite}</p>
+      {lobby.last_winner && <p className="winner">{lobby.last_winner} venceu a última partida e começa a próxima</p>}
+      {lobby.options.independent_reactions && <p className="hint">regra da casa: reações independentes</p>}
 
       <ul className="lobby-seats">
         {lobby.players.map((seat) => (

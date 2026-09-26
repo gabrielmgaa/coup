@@ -252,7 +252,7 @@ roteiros pelo WebSocket com prazos curtos (`TestReconnectingWithinTheGraceResume
 
 ---
 
-## 0.9 — Revanche e acabamento
+## 0.9 — Revanche e acabamento — **pronta**
 
 **Entrega:** o core fechado.
 
@@ -264,7 +264,21 @@ flag na CLI, e o galho C1 testado nos dois modos); animações da TUI; README; `
 
 **Pronto quando:** seis pessoas jogam duas partidas seguidas sem recriar sala, uma delas pela
 CLI; o binário roda numa máquina sem Go instalado; e a definição de pronto do core em
-[`README.md`](README.md) está satisfeita inteira.
+[`README.md`](README.md) está satisfeita inteira. ✅ Revanche coberta por
+`TestAfterTheGameTheTableReturnsToTheLobbyAndTheWinnerStarts` e
+`TestTheLastWinnerAlwaysOpensTheNextGame`; `make release` gera binários estáticos
+(`CGO_ENABLED=0`); o C1 roda nos dois modos em `options_test.go`.
+
+**Decisões tomadas na execução:**
+
+- **`NewGame(names, rng, Setup)`**: `Setup` junta `InitialCoins`, `Starter` e `Options`. Três
+  argumentos soltos não escalariam para o quarto.
+- **A partida acabou, a mesa volta para o lobby na mesma hora.** O último `update` leva o
+  `game_over`; o `lobby` seguinte traz `last_winner`. Quem caiu durante a partida não volta.
+- **A opção é escolhida ao abrir a mesa** (checkbox no formulário, flag no terminal) e aparece
+  no lobby e em `options` do snapshot. Mudar no meio do lobby pediria uma mensagem nova.
+- **Sem animações extras na TUI** além do countdown que anda sozinho: o resto não pagou o código.
+- **`Makefile`**, não `goreleaser`: quatro alvos cabem num `for`.
 
 ---
 

@@ -14,12 +14,17 @@ export default function App() {
 function JoinForm({ table }: { table: ReturnType<typeof useTable> }) {
   const [name, setName] = useState('')
   const [code, setCode] = useState(new URLSearchParams(location.search).get('room') ?? '')
+  const [independent, setIndependent] = useState(false)
 
   function enter(submitted: FormEvent) {
     submitted.preventDefault()
     const player = name.trim()
     const room = code.trim().toUpperCase()
-    table.enter(room ? { type: 'join', room, name: player } : { type: 'create_room', name: player })
+    table.enter(
+      room
+        ? { type: 'join', room, name: player }
+        : { type: 'create_room', name: player, options: { independent_reactions: independent } },
+    )
   }
 
   return (
@@ -45,6 +50,12 @@ function JoinForm({ table }: { table: ReturnType<typeof useTable> }) {
         </button>
       </form>
       <p className="hint">deixe o código vazio para abrir uma mesa nova</p>
+      {code === '' && (
+        <label className="hint">
+          <input type="checkbox" checked={independent} onChange={(ticked) => setIndependent(ticked.target.checked)} />{' '}
+          regra da casa: contestar e ainda bloquear a mesma ação
+        </label>
+      )}
       {table.refusal && <p className="refusal">{table.refusal}</p>}
     </main>
   )

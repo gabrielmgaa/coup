@@ -69,6 +69,7 @@ func (d *registry) roomFor(first protocol.FromClient) (*Room, *engine.Refusal) {
 	switch first.Type {
 	case "create_room":
 		opened := newRoom(d.seedRoom(), d.config, d.freeCode(), d.forget)
+		opened.options = first.Options
 		d.rooms[opened.code] = opened
 		go opened.run()
 		return opened, nil

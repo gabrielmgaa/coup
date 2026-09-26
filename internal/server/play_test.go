@@ -253,3 +253,25 @@ func TestAnExchangeOverTheWireOnlyShowsTheDrawnCardsToTheExchanger(t *testing.T)
 		t.Errorf("%s kept %d cards after the exchange, expected 2", actor, hidden)
 	}
 }
+
+func (a *tab) decodeNext(kind string, into any) {
+	a.t.Helper()
+	for {
+		ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+		_, encoded, err := a.conn.Read(ctx)
+		stop()
+		if err != nil {
+			a.t.Fatalf("%s received no %s within 2s: %v", a.name, kind, err)
+		}
+		var envelope struct {
+			Type string `json:"type"`
+		}
+		json.Unmarshal(encoded, &envelope)
+		if envelope.Type == kind {
+			if err := json.Unmarshal(encoded, into); err != nil {
+				a.t.Fatalf("the %s does not decode: %v", kind, err)
+			}
+			return
+		}
+	}
+}

@@ -59,6 +59,7 @@ type Game struct {
 	players       []player
 	deck          []Character
 	rng           *rand.Rand
+	options       Options
 	phase         Phase
 	turn          int
 	pending       *pendingAction
@@ -70,7 +71,17 @@ type Game struct {
 	eventsEmitted int
 }
 
-func NewGame(names []string, rng *rand.Rand, initialCoins int) (*Game, error) {
+type Options struct {
+	IndependentReactions bool `json:"independent_reactions"`
+}
+
+type Setup struct {
+	InitialCoins int
+	Starter      string
+	Options      Options
+}
+
+func NewGame(names []string, rng *rand.Rand, setup Setup) (*Game, error) {
 	if len(names) > MaxPlayers {
 		return nil, &Refusal{Code: "too_many_players", Message: "gente demais para um baralho só",
 			Received: len(names), Expected: MaxPlayers}
@@ -79,12 +90,16 @@ func NewGame(names []string, rng *rand.Rand, initialCoins int) (*Game, error) {
 	shuffle(deck, rng)
 	game := newGameWithDeck(names, deck)
 	game.rng = rng
-	if initialCoins != RulebookCoins {
+	game.options = setup.Options
+	if setup.InitialCoins != RulebookCoins {
 		for i := range game.players {
-			game.players[i].coins = initialCoins
+			game.players[i].coins = setup.InitialCoins
 		}
 	}
-	game.turn = rng.IntN(len(game.players))
+	game.turn = game.indexOf(setup.Starter)
+	if game.turn == nobody {
+		game.turn = rng.IntN(len(game.players))
+	}
 	return game, nil
 }
 

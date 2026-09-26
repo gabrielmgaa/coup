@@ -651,7 +651,7 @@ func TestAClientThatStopsReadingIsDropped(t *testing.T) {
 	attentive := &connection{outbox: make(chan []byte, outboxCapacity)}
 	room.seats = []*seat{{name: "tester1", conn: attentive}, {name: "tester2", conn: stalled}}
 	attentive.seat, stalled.seat = room.seats[0], room.seats[1]
-	dealt, err := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
+	dealt, err := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.Setup{})
 	if err != nil {
 		t.Fatalf("the two player game was refused: %v", err)
 	}

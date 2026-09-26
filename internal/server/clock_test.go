@@ -98,7 +98,7 @@ func TestAnUnansweredWindowPassesForEveryoneWhenTheDeadlineRuns(t *testing.T) {
 
 func TestAStaleDeadlineChangesNothing(t *testing.T) {
 	room := newRoom(rand.New(rand.NewPCG(1, 2)), hurriedConfig(), "K7QM", func(string) {})
-	dealt, _ := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
+	dealt, _ := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.Setup{})
 	room.game = dealt
 	room.seats = []*seat{{name: "tester1"}, {name: "tester2"}}
 	room.clock.armDeadline(dealt.Decision(), time.Hour, room.deliver)
@@ -117,7 +117,7 @@ func TestStaleGraceAndIdleTimersChangeNothing(t *testing.T) {
 	room := newRoom(rand.New(rand.NewPCG(1, 2)), hurriedConfig(), "K7QM", func(string) {
 		t.Error("a stale idle timer closed the room")
 	})
-	dealt, _ := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
+	dealt, _ := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.Setup{})
 	room.game = dealt
 	room.seats = []*seat{{name: "tester1"}, {name: "tester2"}}
 
@@ -378,7 +378,7 @@ func TestASeatedTabCannotJoinOrReconnectAgain(t *testing.T) {
 
 func TestADeadlineQueuedBeforeAPauseChangesNothing(t *testing.T) {
 	room := newRoom(rand.New(rand.NewPCG(1, 2)), hurriedConfig(), "K7QM", func(string) {})
-	dealt, _ := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.RulebookCoins)
+	dealt, _ := engine.NewGame([]string{"tester1", "tester2"}, rand.New(rand.NewPCG(1, 2)), engine.Setup{})
 	room.game = dealt
 	room.seats = []*seat{{name: "tester1"}, {name: "tester2"}}
 	room.clock.armDeadline(dealt.Decision(), time.Hour, room.deliver)

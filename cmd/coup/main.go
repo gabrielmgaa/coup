@@ -22,7 +22,7 @@ import (
 
 const defaultServer = "ws://localhost:8080/ws"
 
-var errUsage = errors.New("uso: coup serve [-port 8080] | coup join [-server URL] [-name NOME] [-reconnect] [CÓDIGO]")
+var errUsage = errors.New("uso: coup serve [-port 8080] | coup join [-server URL] [-name NOME] [-reconnect] [-independent-reactions] [CÓDIGO]")
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -88,6 +88,7 @@ func tableFrom(args []string, saved tui.Session) (tui.Table, error) {
 	address := flags.String("server", firstFilled(saved.Server, defaultServer), "websocket address of the server")
 	name := flags.String("name", saved.Name, "your name at the table")
 	reconnect := flags.Bool("reconnect", false, "take back the seat saved in the session")
+	independent := flags.Bool("independent-reactions", false, "when opening a table, let a player both challenge and block the same action")
 	if err := flags.Parse(args); err != nil {
 		return tui.Table{}, err
 	}
@@ -97,7 +98,8 @@ func tableFrom(args []string, saved tui.Session) (tui.Table, error) {
 	if strings.TrimSpace(*name) == "" {
 		return tui.Table{}, errors.New("informe seu nome com -name na primeira vez")
 	}
-	return tui.Table{Server: *address, Name: *name, Room: strings.ToUpper(flags.Arg(0))}, nil
+	return tui.Table{Server: *address, Name: *name, Room: strings.ToUpper(flags.Arg(0)),
+		Options: engine.Options{IndependentReactions: *independent}}, nil
 }
 
 func rejoinedTable(address string, saved tui.Session) (tui.Table, error) {

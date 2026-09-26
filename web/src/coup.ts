@@ -47,11 +47,15 @@ export type SeatView = {
   ready: boolean
 }
 
+export type Options = { independent_reactions: boolean }
+
 export type LobbyView = {
   room: string
   you: string
   host: string
   players: SeatView[]
+  options: Options
+  last_winner?: string
 }
 
 export type FromServer =
@@ -61,7 +65,7 @@ export type FromServer =
   | { type: 'error'; code: string; message: string; received?: unknown; expected?: unknown }
 
 export type FromClient =
-  | { type: 'create_room'; name: string }
+  | { type: 'create_room'; name: string; options: Options }
   | { type: 'join'; room: string; name: string }
   | { type: 'reconnect'; room: string; token: string }
   | { type: 'ready'; ready: boolean }

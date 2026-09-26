@@ -37,6 +37,13 @@ func TestJoinReadsTheCodeAndFallsBackToTheSavedSession(t *testing.T) {
 	}
 }
 
+func TestTheHouseRuleFlagTravelsInTheTable(t *testing.T) {
+	table, err := tableFrom([]string{"-name", "tester1", "-independent-reactions"}, tui.Session{})
+	if err != nil || !table.Options.IndependentReactions {
+		t.Errorf("join built %+v, %v; expected independent reactions on", table, err)
+	}
+}
+
 func TestJoinWithoutAnyNameIsRefused(t *testing.T) {
 	if _, err := tableFrom([]string{"K7QM"}, tui.Session{}); err == nil {
 		t.Error("join without a name was accepted")

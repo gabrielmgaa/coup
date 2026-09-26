@@ -3,18 +3,19 @@ package protocol
 import "github.com/gabrielmgaa/coup/internal/engine"
 
 type FromClient struct {
-	Type      string   `json:"type"`
-	Room      string   `json:"room,omitempty"`
-	Name      string   `json:"name,omitempty"`
-	Action    string   `json:"action,omitempty"`
-	Target    string   `json:"target,omitempty"`
-	Card      string   `json:"card,omitempty"`
-	Ready     bool     `json:"ready,omitempty"`
-	Window    int      `json:"window,omitempty"`
-	Answer    string   `json:"answer,omitempty"`
-	Character string   `json:"character,omitempty"`
-	Cards     []string `json:"cards,omitempty"`
-	Token     string   `json:"token,omitempty"`
+	Type      string         `json:"type"`
+	Room      string         `json:"room,omitempty"`
+	Name      string         `json:"name,omitempty"`
+	Action    string         `json:"action,omitempty"`
+	Target    string         `json:"target,omitempty"`
+	Card      string         `json:"card,omitempty"`
+	Ready     bool           `json:"ready,omitempty"`
+	Window    int            `json:"window,omitempty"`
+	Answer    string         `json:"answer,omitempty"`
+	Character string         `json:"character,omitempty"`
+	Cards     []string       `json:"cards,omitempty"`
+	Token     string         `json:"token,omitempty"`
+	Options   engine.Options `json:"options,omitzero"`
 }
 
 type SeatView struct {
@@ -23,10 +24,12 @@ type SeatView struct {
 }
 
 type LobbyView struct {
-	Room    string     `json:"room"`
-	You     string     `json:"you"`
-	Host    string     `json:"host"`
-	Players []SeatView `json:"players"`
+	Room       string         `json:"room"`
+	You        string         `json:"you"`
+	Host       string         `json:"host"`
+	Players    []SeatView     `json:"players"`
+	Options    engine.Options `json:"options"`
+	LastWinner string         `json:"last_winner,omitempty"`
 }
 
 type Lobby struct {

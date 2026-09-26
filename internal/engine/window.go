@@ -189,7 +189,7 @@ func (g *Game) block(blocker int, character Character) []Event {
 func (g *Game) continueAction() []Event {
 	eligible := []int{}
 	for i := range g.players {
-		if g.players[i].alive() && g.mayBlock(i) && !g.pending.reacted[i] {
+		if g.players[i].alive() && g.mayBlock(i) && (g.options.IndependentReactions || !g.pending.reacted[i]) {
 			eligible = append(eligible, i)
 		}
 	}
