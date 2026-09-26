@@ -79,7 +79,7 @@ func startServer(t *testing.T) string {
 }
 
 func calmConfig(startingCoins int) Config {
-	return Config{InitialCoins: startingCoins, Deadline: time.Hour, Grace: time.Hour, IdleTTL: time.Hour}
+	return Config{InitialCoins: startingCoins, Deadline: time.Hour, Grace: time.Hour, IdleTTL: time.Hour, Handshake: time.Hour}
 }
 
 func startServerWithCoins(t *testing.T, startingCoins int) string {

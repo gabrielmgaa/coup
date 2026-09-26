@@ -18,7 +18,7 @@ const (
 )
 
 func hurriedConfig() Config {
-	return Config{InitialCoins: engine.RulebookCoins, Deadline: shortDeadline, Grace: shortGrace, IdleTTL: shortIdle}
+	return Config{InitialCoins: engine.RulebookCoins, Deadline: shortDeadline, Grace: shortGrace, IdleTTL: shortIdle, Handshake: time.Hour}
 }
 
 func patientTimersExceptDeadline() Config {

@@ -6,9 +6,11 @@ import (
 	"io/fs"
 	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/coder/websocket"
@@ -28,6 +30,7 @@ type Config struct {
 	Deadline     time.Duration
 	Grace        time.Duration
 	IdleTTL      time.Duration
+	Handshake    time.Duration
 }
 
 func DefaultConfig(initialCoins int) Config {
@@ -36,6 +39,7 @@ func DefaultConfig(initialCoins int) Config {
 		Deadline:     25 * time.Second,
 		Grace:        30 * time.Second,
 		IdleTTL:      30 * time.Minute,
+		Handshake:    10 * time.Second,
 	}
 }
 
@@ -137,7 +141,7 @@ func (d *registry) accept(w http.ResponseWriter, request *http.Request) {
 	ctx, shutDown := context.WithCancel(context.Background())
 	defer shutDown()
 
-	first, err := readOne(ctx, conn)
+	first, err := readFirst(ctx, conn, d.config.Handshake)
 	if err != nil {
 		refuseAndClose(ctx, conn, &engine.Refusal{Code: "illegal_action",
 			Message:  "a primeira mensagem não pôde ser lida",
@@ -172,10 +176,16 @@ func checkName(raw string) *engine.Refusal {
 		return &engine.Refusal{Code: "invalid_name", Message: "nome fora do tamanho permitido",
 			Received: raw, Expected: "2 a 16 caracteres"}
 	}
+	if strings.ContainsFunc(raw, func(letter rune) bool { return !unicode.IsPrint(letter) && letter != ' ' }) {
+		return &engine.Refusal{Code: "invalid_name", Message: "nome com caractere que não se imprime",
+			Received: strconv.QuoteToASCII(raw), Expected: "letras, números, espaços e sinais"}
+	}
 	return nil
 }
 
-func readOne(ctx context.Context, conn *websocket.Conn) (protocol.FromClient, error) {
+func readFirst(ctx context.Context, conn *websocket.Conn, patience time.Duration) (protocol.FromClient, error) {
+	ctx, stop := context.WithTimeout(ctx, patience)
+	defer stop()
 	_, encoded, err := conn.Read(ctx)
 	if err != nil {
 		return protocol.FromClient{}, err

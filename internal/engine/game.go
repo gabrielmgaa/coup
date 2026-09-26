@@ -158,28 +158,39 @@ func (g *Game) checkAction(a Act) (pendingAction, error) {
 	if err != nil {
 		return pendingAction{}, err
 	}
-	rule, known := rules[a.Action]
-	if !known {
-		return pendingAction{}, &Refusal{Code: "illegal_action", Message: "ação que não existe",
-			Received: int(a.Action), Expected: ActionNames()}
+	rule, err := g.allowedRule(by, a.Action)
+	if err != nil {
+		return pendingAction{}, err
 	}
-	if g.players[by].coins >= coinsForcingCoup && a.Action != Coup {
-		return pendingAction{}, &Refusal{Code: "coup_required",
-			Message:  "com 10 moedas ou mais o turno inteiro é um Golpe",
-			Received: rule.Name, Expected: "coup"}
-	}
-	target := nobody
-	if rule.NeedsTarget {
-		if target, err = g.indexOfValidTarget(by, rule, a.Target); err != nil {
-			return pendingAction{}, err
-		}
-	}
-	if g.players[by].coins < rule.Cost {
-		return pendingAction{}, &Refusal{Code: "insufficient_coins",
-			Message:  "saldo menor que o custo da ação",
-			Received: g.players[by].coins, Expected: rule.Cost}
+	target, err := g.targetOf(by, rule, a.Target)
+	if err != nil {
+		return pendingAction{}, err
 	}
 	return pendingAction{rule: rule, by: by, target: target, reacted: map[int]bool{}}, nil
+}
+
+func (g *Game) allowedRule(by int, action ActionType) (Rule, error) {
+	rule, known := rules[action]
+	if !known {
+		return Rule{}, &Refusal{Code: "illegal_action", Message: "ação que não existe",
+			Received: int(action), Expected: ActionNames()}
+	}
+	if g.players[by].coins >= coinsForcingCoup && action != Coup {
+		return Rule{}, &Refusal{Code: "coup_required", Message: "com 10 moedas ou mais o turno inteiro é um Golpe",
+			Received: rule.Name, Expected: "coup"}
+	}
+	if g.players[by].coins < rule.Cost {
+		return Rule{}, &Refusal{Code: "insufficient_coins", Message: "saldo menor que o custo da ação",
+			Received: g.players[by].coins, Expected: rule.Cost}
+	}
+	return rule, nil
+}
+
+func (g *Game) targetOf(by int, rule Rule, name string) (int, error) {
+	if !rule.NeedsTarget {
+		return nobody, nil
+	}
+	return g.indexOfValidTarget(by, rule, name)
 }
 
 func (g *Game) resolveAction() []Event {

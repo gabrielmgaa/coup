@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/gabrielmgaa/coup/internal/protocol"
@@ -177,6 +178,39 @@ func TestAHandNeverTravelsToAnotherSeat(t *testing.T) {
 	for viewer, view := range playing.views {
 		if viewer != actor && view.YourReturns != nil {
 			t.Errorf("%s was offered %s's exchange: %v", viewer, actor, view.YourReturns)
+		}
+	}
+}
+
+func TestASilentSocketIsClosedAfterTheHandshakeTimeout(t *testing.T) {
+	config := calmConfig(0)
+	config.Handshake = 100 * time.Millisecond
+	url := startServerWith(t, config)
+	silent := dial(t, url)
+
+	started := time.Now()
+	ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+	defer stop()
+	_, _, err := silent.conn.Read(ctx)
+	if err == nil || time.Since(started) > time.Second {
+		t.Errorf("a socket that never spoke stayed open for %v (err %v), expected it closed after 100ms", time.Since(started), err)
+	}
+}
+
+func TestNamesThatCouldPaintOverSomeoneElsesTerminalAreRefused(t *testing.T) {
+	url := startServer(t)
+	host := createTable(t, url, "tester1")
+	for _, name := range []string{"\x1b[2Jtester2", "tester\n2", "tester\t2", "tester​2x"} {
+		intruder := dial(t, url)
+		intruder.send(protocol.FromClient{Type: "join", Room: host.room, Name: name})
+		if refused := intruder.receive(); refused.Code != "invalid_name" {
+			t.Errorf("the name %q answered %q, expected invalid_name", name, refused.Code)
+		}
+	}
+	for _, name := range []string{"José da Silva", "tester-2!", "ação"} {
+		entering := enterTable(t, url, host.room, name)
+		if welcome := entering.receive(); welcome.Type != "welcome" {
+			t.Errorf("the name %q answered %q, expected to sit", name, welcome.Type)
 		}
 	}
 }

@@ -24,7 +24,7 @@ const startingCoinsForThreeCoups = 14
 func startServer(t *testing.T) string {
 	t.Helper()
 	running := httptest.NewServer(server.New(fstest.MapFS{}, rand.New(rand.NewPCG(1, 2)),
-		server.Config{InitialCoins: startingCoinsForThreeCoups, Deadline: time.Hour, Grace: time.Hour, IdleTTL: time.Hour}))
+		server.Config{InitialCoins: startingCoinsForThreeCoups, Deadline: time.Hour, Grace: time.Hour, IdleTTL: time.Hour, Handshake: time.Hour}))
 	t.Cleanup(running.Close)
 	return "ws" + strings.TrimPrefix(running.URL, "http") + "/ws"
 }
